@@ -44,6 +44,11 @@ class JarvisUI {
         metadata: {
           sessionId: 'jarvis-' + Date.now()
         },
+        // Try to prevent interruptions during agent speech
+        pushToTalkEnabled: false,
+        interruptible: false,
+        vadSensitivity: 0.1, // Lower sensitivity to reduce false positives
+        speechEndTimeout: 1500, // Wait longer before ending speech
         onConnect: ({ sessionId }) => {
           console.log('✅ Connected to Layercode:', sessionId);
           this.currentSessionId = sessionId;
