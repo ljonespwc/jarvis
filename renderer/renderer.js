@@ -44,16 +44,6 @@ class JarvisUI {
         metadata: {
           sessionId: 'jarvis-' + Date.now()
         },
-        // Add debug logging to see all available events
-        onAny: (eventName, data) => {
-          console.log('🎧 Layercode event:', eventName, data);
-          
-          // Check for any amplitude-related data in events
-          if (data && (data.userAudioAmplitude !== undefined || data.agentAudioAmplitude !== undefined)) {
-            console.log('🎤 Found amplitude data!', data);
-            this.updateVisualFeedback(data);
-          }
-        },
         onConnect: ({ sessionId }) => {
           console.log('✅ Connected to Layercode:', sessionId);
           this.currentSessionId = sessionId;
@@ -79,18 +69,18 @@ class JarvisUI {
           console.log('📝 Voice input:', transcript.substring(0, 50));
           this.updateStatus(`You said: "${transcript}"`);
         },
-        // Try different event names for audio data
-        onAudioLevel: (data) => {
-          console.log('🎧 onAudioLevel:', data);
-          this.updateVisualFeedback(data);
-        },
-        onAmplitudeData: (data) => {
-          console.log('🎧 onAmplitudeData:', data);
-          this.updateVisualFeedback(data);
-        },
-        onVoiceActivity: (data) => {
-          console.log('🎧 onVoiceActivity:', data);
-          this.updateVisualFeedback(data);
+        // Handle data messages like lickedin project
+        onDataMessage: (data) => {
+          console.log('📨 Data message:', data.type);
+          
+          // Handle different message types without triggering unknown message errors
+          if (data.type === 'agent_transcription') {
+            // Agent speaking transcription
+          } else if (data.type === 'user_transcription') {
+            // User speaking transcription  
+          } else if (data.type === 'response.data') {
+            // Response data from webhook
+          }
         },
         onTurnStarted: () => {
           console.log('🎤 Turn started - user speaking');
@@ -194,13 +184,6 @@ class JarvisUI {
       }
     }
     
-    // Reduced debug logging - only significant changes
-    if ((userAmplitude > 0.01 || agentAmplitude > 0.01) && Math.random() < 0.1) {
-      console.log('🎤 Live audio:', { 
-        user: userAmplitude?.toFixed(3), 
-        agent: agentAmplitude?.toFixed(3)
-      });
-    }
   }
 
   updateVisualFeedback(data) {
