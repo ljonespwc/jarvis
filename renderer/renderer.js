@@ -44,12 +44,6 @@ class JarvisUI {
         metadata: {
           sessionId: 'jarvis-' + Date.now()
         },
-        // Try to prevent interruptions during agent speech
-        pushToTalkEnabled: false,
-        interruptible: false,
-        vadSensitivity: 0.05, // Even lower sensitivity to reduce false positives  
-        speechEndTimeout: 2000, // Wait longer before ending speech
-        speechStartThreshold: 0.15, // Higher threshold to start speech detection
         onConnect: ({ sessionId }) => {
           console.log('✅ Connected to Layercode:', sessionId);
           this.currentSessionId = sessionId;
@@ -74,19 +68,6 @@ class JarvisUI {
         onTranscript: (transcript) => {
           console.log('📝 Voice input:', transcript.substring(0, 50));
           this.updateStatus(`You said: "${transcript}"`);
-        },
-        // Handle data messages like lickedin project
-        onDataMessage: (data) => {
-          console.log('📨 Data message:', data.type);
-          
-          // Handle different message types without triggering unknown message errors
-          if (data.type === 'agent_transcription') {
-            // Agent speaking transcription
-          } else if (data.type === 'user_transcription') {
-            // User speaking transcription  
-          } else if (data.type === 'response.data') {
-            // Response data from webhook
-          }
         },
         onTurnStarted: () => {
           console.log('🎤 Turn started - user speaking');
