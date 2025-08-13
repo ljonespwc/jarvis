@@ -31,6 +31,12 @@ class JarvisUI {
       }
 
       console.log('🔧 Authorization received:', authData);
+      console.log('🔧 client_session_key:', authData.client_session_key);
+      console.log('🔧 session_id:', authData.session_id);
+
+      if (!authData.client_session_key) {
+        throw new Error('No client_session_key in authorization response');
+      }
 
       this.layercodeClient = new LayercodeClient({
         clientSessionKey: authData.client_session_key,
