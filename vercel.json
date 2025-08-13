@@ -6,5 +6,8 @@
     "api/authorize.js": {
       "maxDuration": 10
     }
-  }
+  },
+  "buildCommand": "",
+  "outputDirectory": ".",
+  "installCommand": "npm install --production"
 }
