@@ -81,6 +81,24 @@ const jarvisApp = new JarvisApp();
 app.whenReady().then(async () => {
   // Suppress Electron warnings and devtools protocol messages - clean console
   process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
+  process.env.ELECTRON_DISABLE_LOGGING = 'true';
+  
+  // Suppress stderr output for devtools protocol messages
+  const originalStderrWrite = process.stderr.write;
+  process.stderr.write = function(string, encoding, fd) {
+    if (typeof string === 'string' && (
+        string.includes('devtools') ||
+        string.includes('protocol_client') ||
+        string.includes('bundled/core/protocol_client') ||
+        string.includes('Network.enable') ||
+        string.includes('ERROR:CONSOLE') ||
+        string.includes('clearAcceptedEncodingsOverride') ||
+        string.includes('setEmulatedVisionDeficiency')
+    )) {
+      return true; // Suppress stderr devtools messages
+    }
+    return originalStderrWrite.call(this, string, encoding, fd);
+  };
   const originalConsoleLog = console.log;
   const originalConsoleWarn = console.warn;
   const originalConsoleError = console.error;
@@ -94,7 +112,12 @@ app.whenReady().then(async () => {
         message.includes('Emulation.setEmulated') ||
         message.includes('NSCameraUsage') ||
         message.includes('Request Network') ||
-        message.includes('ERROR:CONSOLE')) {
+        message.includes('ERROR:CONSOLE') ||
+        message.includes('bundled/core/protocol_client') ||
+        message.includes('clearAcceptedEncodingsOverride') ||
+        message.includes('setEmulatedVisionDeficiency') ||
+        message.includes('AVCaptureDeviceTypeExternal') ||
+        message.includes('NSCameraUsageContinuityCameraDeviceType')) {
       return; // Suppress these messages
     }
     originalConsoleLog.apply(console, args);
@@ -114,7 +137,13 @@ app.whenReady().then(async () => {
     const message = args.join(' ');
     if (message.includes('devtools') || 
         message.includes('protocol_client') ||
-        message.includes('ERROR:CONSOLE')) {
+        message.includes('ERROR:CONSOLE') ||
+        message.includes('bundled/core/protocol_client') ||
+        message.includes('Network.enable') ||
+        message.includes('Network.setAttachDebugStack') ||
+        message.includes('Emulation.setEmulated') ||
+        message.includes('clearAcceptedEncodingsOverride') ||
+        message.includes('setEmulatedVisionDeficiency')) {
       return; // Suppress these errors
     }
     originalConsoleError.apply(console, args);
