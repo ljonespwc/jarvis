@@ -32,7 +32,8 @@ class JarvisApp {
       skipTaskbar: false
     });
 
-    this.mainWindow.loadFile('renderer/index.html');
+    // Load Next.js static export
+    this.mainWindow.loadFile('out/index.html');
 
     // Don't open DevTools - causes voice interruptions
     // this.mainWindow.webContents.openDevTools({ mode: 'detach' });

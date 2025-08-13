@@ -4,9 +4,11 @@
   "description": "Voice-controlled todo.txt desktop application with Layercode and OpenAI integration",
   "main": "main.js",
   "scripts": {
-    "start": "electron .",
-    "dev": "electron . --dev",
-    "build": "electron-builder",
+    "next:dev": "next dev",
+    "next:build": "next build",
+    "start": "npm run next:build && electron .",
+    "dev": "npm run next:build && electron . --dev",
+    "build": "npm run next:build && electron-builder",
     "test": "jest",
     "vercel-build": "echo 'No build step required for serverless functions'"
   },
@@ -27,10 +29,14 @@
   },
   "dependencies": {
     "@layercode/node-server-sdk": "^1.2.1",
+    "@layercode/react-sdk": "^1.0.29",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
-    "openai": "^4.20.1"
+    "next": "^15.4.6",
+    "openai": "^4.20.1",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
   },
   "build": {
     "appId": "com.jarvis.voice-todo",
@@ -41,7 +47,7 @@
     "files": [
       "main.js",
       "preload.js",
-      "renderer/**/*",
+      "out/**/*",
       "src/**/*",
       "package.json"
     ],
