@@ -10,10 +10,7 @@ async function getLayercodeStreamResponse() {
       console.log('SDK imported, available exports:', Object.keys(sdk));
       
       // Try different ways to get streamResponse
-      streamResponse = sdk.streamResponse || 
-                      sdk.default?.streamResponse || 
-                      sdk.default ||
-                      sdk.streamResponse;
+      streamResponse = sdk.streamResponse || sdk.default?.streamResponse;
                       
       if (!streamResponse) {
         throw new Error('streamResponse not found in any expected location');
@@ -214,8 +211,9 @@ export default async function handler(req, res) {
     console.log('🚀 Using Layercode SDK streamResponse');
     
     // Use Layercode's streamResponse to handle SSE properly
-    return layercodeStreamResponse(req, async ({ stream }) => {
-      await handleVoiceCommand(req.body, stream);
+    return layercodeStreamResponse(req, async (context) => {
+      console.log('🔧 Stream context received:', Object.keys(context));
+      await handleVoiceCommand(req.body, context.stream || context);
     })(req, res);
     
   } catch (error) {
