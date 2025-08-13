@@ -7,8 +7,8 @@
     "next:dev": "next dev",
     "next:build": "next build",
     "start": "npm run next:build && electron .",
-    "dev": "npm run next:build && electron . --dev",
-    "dev:quick": "electron . --dev",
+    "dev": "electron . --dev",
+    "dev:build": "npm run next:build && electron . --dev",
     "build": "npm run next:build && electron-builder",
     "test": "jest",
     "vercel-build": "echo 'No build step required for serverless functions'"
