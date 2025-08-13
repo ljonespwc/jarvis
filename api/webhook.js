@@ -289,16 +289,26 @@ export default async function handler(req, res) {
     console.log(`🗣️ Response: ${responseText}`);
     
     // Send TTS response in Layercode format
-    res.json({
+    // Note: Layercode expects multiple events, so we need to send both TTS and end events
+    const ttsResponse = {
       type: "response.tts",
       content: responseText,
+      turn_id: turn_id
+    };
+    
+    const endResponse = {
+      type: "response.end", 
       turn_id: turn_id,
-      // Additional metadata (optional)
       metadata: {
         todos: todos,
         action: aiResult.action,
         timestamp: new Date().toISOString()
       }
+    };
+
+    // Try simple text response to see if TTS works at all
+    res.json({
+      message: responseText
     });
 
   } catch (error) {
