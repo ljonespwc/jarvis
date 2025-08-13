@@ -1,9 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('jarvisAPI', {
-  getTodos: () => ipcRenderer.invoke('get-todos'),
-  addTodo: (taskText) => ipcRenderer.invoke('add-todo', taskText),
-  markDone: (taskMatch) => ipcRenderer.invoke('mark-done', taskMatch),
   startListening: () => ipcRenderer.invoke('start-listening'),
   stopListening: () => ipcRenderer.invoke('stop-listening'),
   getVoiceConfig: () => ipcRenderer.invoke('get-voice-config'),
