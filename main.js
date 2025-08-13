@@ -79,26 +79,17 @@ class JarvisApp {
 
 const jarvisApp = new JarvisApp();
 
-// Suppress ALL Electron stderr noise before app starts
+// Disable Chrome/Electron noise at the source with command line switches
 process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
 
-// More aggressive stderr suppression
-const originalStderrWrite = process.stderr.write;
-process.stderr.write = function(string, encoding, fd) {
-  if (typeof string === 'string') {
-    // Suppress ALL Chrome DevTools/Electron noise
-    if (string.match(/\[\d+:\d+\/\d+\.\d+:ERROR:(CONSOLE\(1\)|trust_store_mac\.cc)/) ||
-        string.includes('Request Network.') ||
-        string.includes('Request Emulation.') ||
-        string.includes('devtools://') ||
-        string.includes('protocol_client') ||
-        string.includes('Failed parsing extensions') ||
-        string.includes('AVCaptureDeviceTypeExternal is deprecated')) {
-      return true; // Suppress completely
-    }
-  }
-  return originalStderrWrite.call(this, string, encoding, fd);
-};
+// Suppress Chrome logging and DevTools errors
+app.commandLine.appendSwitch('--log-level', '3'); // Only fatal errors
+app.commandLine.appendSwitch('--disable-logging');
+app.commandLine.appendSwitch('--silent-debugger-extension-api');
+app.commandLine.appendSwitch('--disable-dev-shm-usage');
+app.commandLine.appendSwitch('--disable-background-timer-throttling');
+app.commandLine.appendSwitch('--disable-renderer-backgrounding');
+app.commandLine.appendSwitch('--disable-backgrounding-occluded-windows');
 
 app.whenReady().then(async () => {
 
