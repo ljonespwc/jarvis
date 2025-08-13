@@ -10,8 +10,28 @@ class JarvisUI {
     this.userSpeaking = false;
     this.agentSpeaking = false;
     
+    this.suppressOnnxWarnings();
     this.initializeLayercode();
     this.setupVisualFeedback();
+  }
+
+  suppressOnnxWarnings() {
+    // Suppress ONNX model warnings like in lickedin project
+    const originalWarn = console.warn;
+    console.warn = (...args) => {
+      const message = args.join(' ');
+      if (message.includes('CleanUnusedInitializersAndNodeArgs') || 
+          message.includes('onnxruntime') ||
+          message.includes('graph.cc') ||
+          message.includes('decoder/rnn') ||
+          message.includes('_output_0') ||
+          message.includes('VAD model failed to load') ||
+          message.includes('onSpeechStart') ||
+          message.includes('Interruption requested')) {
+        return; // Suppress these warnings
+      }
+      originalWarn.apply(console, args);
+    };
   }
   
   async initializeLayercode() {
@@ -28,6 +48,8 @@ class JarvisUI {
           console.log('✅ Connected to Layercode:', sessionId);
           this.currentSessionId = sessionId;
           this.updateStatus('🎤 JARVIS is listening... Speak naturally');
+          // Start with listening state to show pulsing
+          this.setListeningState(true);
         },
         onDisconnect: () => {
           console.log('🔌 Disconnected from Layercode');
@@ -42,17 +64,18 @@ class JarvisUI {
         onTranscript: (transcript) => {
           console.log('📝 Voice input:', transcript.substring(0, 50));
           this.updateStatus(`You said: "${transcript}"`);
-          this.userSpeaking = false;
+          this.setListeningState(false);
         },
         onResponse: (response) => {
           console.log('🗣️ JARVIS response:', response.substring(0, 50));
           this.updateStatus(`🤖 JARVIS: "${response}"`);
-          this.agentSpeaking = true;
+          this.setSpeakingState(true);
           
           // Auto-reset to listening after response
           setTimeout(() => {
             this.updateStatus('🎤 JARVIS is listening... Speak naturally');
-            this.agentSpeaking = false;
+            this.setSpeakingState(false);
+            this.setListeningState(true);
           }, 4000);
         },
         // Add audio amplitude detection like lickedin
@@ -75,13 +98,14 @@ class JarvisUI {
           this.updateVisualFeedback(data);
         },
         onTurnStarted: () => {
-          console.log('🎤 Turn started');
-          this.userSpeaking = true;
+          console.log('🎤 Turn started - user speaking');
+          this.setListeningState(false);
+          this.setUserSpeakingState(true);
         },
         onTurnFinished: () => {
           console.log('⏳ Processing...');
           this.updateStatus('⏳ JARVIS is thinking...');
-          this.userSpeaking = false;
+          this.setUserSpeakingState(false);
         }
       });
 
@@ -100,22 +124,57 @@ class JarvisUI {
     console.log('🎨 Setting up visual feedback for automatic voice interaction');
   }
   
-  updateVisualFeedback(data) {
-    // Update UI based on audio amplitude data like lickedin
+  setListeningState(isListening) {
     const voiceCircle = document.getElementById('voiceCircle');
     if (!voiceCircle) return;
     
-    // Update visual state based on who's speaking
-    voiceCircle.classList.remove('listening', 'speaking');
+    voiceCircle.classList.remove('listening', 'speaking', 'user-speaking');
     
-    if (this.userSpeaking) {
+    if (isListening) {
       voiceCircle.classList.add('listening');
       voiceCircle.textContent = '🎤';
-    } else if (this.agentSpeaking) {
+      console.log('👀 Visual: Listening state (blue pulse)');
+    }
+  }
+  
+  setSpeakingState(isSpeaking) {
+    const voiceCircle = document.getElementById('voiceCircle');
+    if (!voiceCircle) return;
+    
+    if (isSpeaking) {
+      voiceCircle.classList.remove('listening', 'user-speaking');
       voiceCircle.classList.add('speaking');
       voiceCircle.textContent = '🗣️';
-    } else {
-      voiceCircle.textContent = '🤖';
+      console.log('👀 Visual: Agent speaking state (green pulse)');
+    }
+  }
+  
+  setUserSpeakingState(userSpeaking) {
+    const voiceCircle = document.getElementById('voiceCircle');
+    if (!voiceCircle) return;
+    
+    if (userSpeaking) {
+      voiceCircle.classList.remove('listening', 'speaking');
+      voiceCircle.classList.add('user-speaking');
+      voiceCircle.textContent = '🎙️';
+      console.log('👀 Visual: User speaking state (intense blue pulse)');
+    }
+  }
+
+  updateVisualFeedback(data) {
+    // Debug audio amplitude data
+    if (data && (data.userAudioAmplitude > 0 || data.agentAudioAmplitude > 0)) {
+      console.log('🎧 Audio data:', { 
+        user: data.userAudioAmplitude?.toFixed(3), 
+        agent: data.agentAudioAmplitude?.toFixed(3) 
+      });
+    }
+    
+    // Auto-trigger based on amplitude if available
+    if (data?.userAudioAmplitude > 0.01) {
+      this.setUserSpeakingState(true);
+    } else if (data?.agentAudioAmplitude > 0.01) {
+      this.setSpeakingState(true);
     }
   }
   
