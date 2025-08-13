@@ -69,49 +69,133 @@ export default async function handler(req, res) {
       return;
     }
 
-    // Simple file reading function
+    // File operations
     async function readTasks() {
       try {
         const content = await fs.readFile(TODO_FILE, 'utf8');
         const lines = content.split('\n').filter(line => line.trim());
-        const active = lines.filter(line => !line.startsWith('[DONE]') && !line.startsWith('#')).slice(0, 5);
+        const active = lines.filter(line => !line.startsWith('[DONE]') && !line.startsWith('#'));
         return active;
       } catch (error) {
-        return ['Review quarterly reports', 'Schedule dentist appointment', 'Buy groceries'];
+        console.error('❌ Failed to read todo file:', error);
+        throw new Error('Could not read your todo file');
       }
     }
 
-    // Process command with AI
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: `You are JARVIS, a voice todo assistant. Help with these commands:
-          - "What needs my attention?" → List top 3-5 priority tasks
-          - "Add [task]" → Add new task
-          - "Mark [task] done" → Complete task
-          
-          Current active tasks: ${(await readTasks()).join(', ')}
-          
-          Respond naturally and conversationally. Keep responses short (1-2 sentences).`
-        },
-        {
-          role: "user",
-          content: text
+    async function addTask(taskText) {
+      try {
+        const content = await fs.readFile(TODO_FILE, 'utf8');
+        const lines = content.split('\n');
+        
+        // Find where [DONE] section starts, or add before it
+        const doneIndex = lines.findIndex(line => line.startsWith('[DONE]'));
+        const insertIndex = doneIndex === -1 ? lines.length : doneIndex;
+        
+        // Insert new task
+        lines.splice(insertIndex, 0, taskText);
+        
+        await fs.writeFile(TODO_FILE, lines.join('\n'));
+        return `Added "${taskText}" to your todo list`;
+      } catch (error) {
+        console.error('❌ Failed to add task:', error);
+        return 'Sorry, I could not add that task to your file';
+      }
+    }
+
+    async function markTaskDone(taskQuery) {
+      try {
+        const content = await fs.readFile(TODO_FILE, 'utf8');
+        const lines = content.split('\n');
+        
+        // Find matching active task
+        const query = taskQuery.toLowerCase();
+        const taskIndex = lines.findIndex(line => 
+          !line.startsWith('[DONE]') && 
+          !line.startsWith('#') && 
+          line.toLowerCase().includes(query)
+        );
+        
+        if (taskIndex === -1) {
+          return `Could not find task matching "${taskQuery}"`;
         }
-      ],
-      temperature: 0.7,
-      max_tokens: 100
-    });
+        
+        const taskText = lines[taskIndex];
+        const today = new Date().toISOString().split('T')[0];
+        
+        // Replace with [DONE] version
+        lines[taskIndex] = `[DONE] ${today} ${taskText}`;
+        
+        await fs.writeFile(TODO_FILE, lines.join('\n'));
+        return `Marked "${taskText}" as complete`;
+      } catch (error) {
+        console.error('❌ Failed to mark task done:', error);
+        return 'Sorry, I could not update your todo file';
+      }
+    }
 
-    let responseText = completion.choices[0]?.message?.content || "I didn't understand that. Try asking 'What needs my attention?'";
-
-    // Basic command processing with real file reading
+    // Process commands with ACTUAL file operations
     const lowerText = text.toLowerCase();
-    if (lowerText.includes('what needs') || lowerText.includes('attention')) {
-      const tasks = await readTasks();
-      responseText = `You have ${tasks.length} priority tasks: ${tasks.join(', ')}`;
+    let responseText = '';
+
+    try {
+      if (lowerText.includes('what needs') || lowerText.includes('attention')) {
+        const tasks = await readTasks();
+        if (tasks.length === 0) {
+          responseText = "Great! You have no active tasks. Time to relax!";
+        } else {
+          responseText = `You have ${tasks.length} tasks: ${tasks.slice(0, 3).join(', ')}`;
+        }
+        
+      } else if (lowerText.includes('add ')) {
+        const taskMatch = text.match(/add (.+)/i);
+        if (taskMatch) {
+          const newTask = taskMatch[1].trim();
+          responseText = await addTask(newTask);
+        } else {
+          responseText = "What would you like me to add to your todo list?";
+        }
+        
+      } else if (lowerText.includes('mark') && (lowerText.includes('done') || lowerText.includes('complete'))) {
+        const taskMatch = text.match(/mark (.+?) (?:done|complete)/i) || text.match(/(?:mark|complete) (.+)/i);
+        if (taskMatch) {
+          const taskQuery = taskMatch[1].trim();
+          responseText = await markTaskDone(taskQuery);
+        } else {
+          responseText = "Which task would you like me to mark as complete?";
+        }
+        
+      } else if (lowerText.includes('read') && (lowerText.includes('list') || lowerText.includes('tasks'))) {
+        const tasks = await readTasks();
+        if (tasks.length === 0) {
+          responseText = "Your todo list is empty. Well done!";
+        } else {
+          responseText = `You have ${tasks.length} tasks: ${tasks.join(', ')}`;
+        }
+        
+      } else {
+        // AI fallback with real tasks
+        const tasks = await readTasks();
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [
+            {
+              role: "system",
+              content: `You are JARVIS, a voice todo assistant. Current tasks: ${tasks.join(', ') || 'None'}. Respond helpfully and briefly.`
+            },
+            {
+              role: "user",
+              content: text
+            }
+          ],
+          temperature: 0.7,
+          max_tokens: 100
+        });
+        responseText = completion.choices[0]?.message?.content || "I didn't understand that. Try asking 'What needs my attention?'";
+      }
+      
+    } catch (error) {
+      console.error('❌ Error processing command:', error);
+      responseText = "Sorry, I had trouble accessing your todo file. Please try again.";
     }
 
     console.log('🗣️ JARVIS response:', responseText.substring(0, 80) + (responseText.length > 80 ? '...' : ''));
