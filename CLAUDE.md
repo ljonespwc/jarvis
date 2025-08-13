@@ -7,8 +7,8 @@ Voice-controlled desktop todo.txt application using Electron, Layercode SDK, and
 **Solution**: Voice-first interface for ambient awareness - "Hey JARVIS, what needs my attention?"
 
 ## Technical Stack
-- **Frontend**: Electron (cross-platform desktop)
-- **Voice Processing**: Layercode Node.js SDK (@layercode/node-server-sdk)
+- **Frontend**: Electron + Next.js + React (cross-platform desktop)
+- **Voice Processing**: Layercode React SDK (@layercode/react-sdk)
 - **AI**: OpenAI GPT-4o-mini for intent recognition and natural responses
 - **File Format**: Simple todo.txt (active tasks + [DONE] completed tasks)
 - **Backup**: Automatic versioned backups before changes
@@ -32,24 +32,30 @@ Voice Input → Layercode SDK → GPT-4o-mini → File Operations → TTS Respon
 
 ## Development Progress
 
-### ✅ COMPLETED - Full Voice Integration Working (Aug 13, 2025)
-- [x] Electron application with complete voice processing
-- [x] Layercode frontend SDK integration with vanilla JS
-- [x] Vercel serverless backend with proper SSE implementation
-- [x] OpenAI GPT-4o-mini integration for command processing
-- [x] End-to-end voice flow: Speech → AI → TTS response
-- [x] Core voice commands working ("What needs my attention?", "Add task", "Mark done")
-- [x] Real-time voice transcription and AI responses
-- [x] Proper error handling and connection management
+### ✅ COMPLETED - Modern Voice Architecture (Aug 13, 2025)
+- [x] **Next.js + React Architecture**: Migrated from vanilla JS to modern React components
+- [x] **Layercode React SDK Integration**: Using `useLayercodePipeline` hook for better state management
+- [x] **Clean Console Output**: Suppressed Chrome DevTools protocol spam completely
+- [x] **Electron + Next.js Hybrid**: Desktop app serving static Next.js build
+- [x] **Voice Pipeline Working**: End-to-end voice flow with Layercode → OpenAI → TTS
+- [x] **Amplitude Visualization**: Real-time audio feedback bars working properly
+- [x] **Build Process Optimized**: Proper .gitignore, build artifacts excluded from source control
+- [x] **Development Workflow**: Clean `npm run dev` command for rapid testing
 
-**Status**: ✅ **FULLY FUNCTIONAL** - Voice todo assistant working end-to-end
+**Current Status**: ✅ **VOICE INTERACTION WORKING** - React-based frontend with full voice conversation capability
+
+### 🔄 IN PROGRESS - Missing Core Functionality
+- [ ] **NO TODO.TXT FILE INTEGRATION** - Currently using in-memory mock data only
+- [ ] **NO FILE I/O OPERATIONS** - Cannot read/write actual ~/todo.txt files
+- [ ] **NO TASK PERSISTENCE** - Tasks don't persist between sessions
+- [ ] **NO BACKUP SYSTEM** - No automatic file backups before changes
 
 ## API Requirements
 - **OpenAI API Key**: For GPT-4o-mini intent recognition and responses
 - **Layercode API Key + Project ID**: For voice processing pipeline
 
 ## File Locations
-- **Todo File**: `~/todo.txt` (configurable)
+- **Todo File**: `~/Desktop/todo.txt` (user already has existing file)
 - **Backups**: `~/.jarvis-backups/todo-backup-TIMESTAMP.txt`
 - **Config**: `.env` file with API keys
 
@@ -106,9 +112,96 @@ data: {"type":"response.end","turn_id":"id"}
 /renderer/renderer.js  - Frontend with Layercode JS SDK
 ```
 
-**Final Result**: ✅ **FULLY FUNCTIONAL** voice-controlled todo assistant with:
-- Real-time speech-to-text via Layercode
-- Natural language processing via OpenAI GPT-4o-mini  
-- Text-to-speech responses via Layercode/Cartesia
-- Complete end-to-end voice conversation flow
-- Reliable cloud deployment on Vercel
+## 🎯 NEXT DEVELOPMENT PHASE - TODO.TXT FILE INTEGRATION
+
+### Priority 1: Core File Operations (Must Have)
+1. **Create TodoFileManager Class** - Handle all file I/O operations for ~/todo.txt
+   - Read existing todo.txt file or create if doesn't exist
+   - Parse tasks (active vs [DONE] completed tasks)
+   - Write changes back to file with proper formatting
+   - Error handling for file permissions/locks
+
+2. **Implement File Backup System** - Automatic versioned backups before changes
+   - Create ~/.jarvis-backups/ directory
+   - Generate timestamped backup files before modifications
+   - Limit backup retention (keep last 10 backups)
+
+3. **Update Vercel Webhook Integration** - Connect voice commands to file operations
+   - Modify /api/webhook-simple.js to call file operations
+   - Handle "Add task" → append to todo.txt file
+   - Handle "Mark done" → move task to [DONE] section with timestamp
+   - Handle "What needs attention" → read and prioritize actual file contents
+
+### Priority 2: Essential Voice Commands (Must Have)
+4. **"Add [task]" Command** - Append new tasks to todo.txt
+   - Parse task from voice transcript
+   - Add to active tasks section (before [DONE] tasks)
+   - Confirm addition via TTS response
+
+5. **"Mark [task] done" Command** - Complete tasks with timestamp
+   - Fuzzy matching to find task in active list
+   - Move to [DONE] section with current date
+   - Handle ambiguous matches (ask for clarification)
+
+6. **"What needs my attention?" Command** - Read top priority tasks
+   - Parse active tasks from file
+   - Apply prioritization logic (urgency keywords, due dates)
+   - Read top 3-5 tasks via TTS
+
+7. **"Read my list" Command** - Read all active tasks
+   - Skip [DONE] tasks
+   - Read all undone tasks with natural speech pacing
+
+8. **"What's next?" Command** - Read next undone task
+   - Return first active task or smart priority selection
+   - Handle empty list gracefully
+
+### Priority 3: File Format & Parsing (Must Have)
+9. **Implement Simple File Format Parser**
+   ```
+   Active tasks (one per line)
+   Another active task
+   
+   [DONE] 2025-08-13 Completed task
+   [DONE] 2025-08-13 Another completed task
+   ```
+
+10. **Handle File Creation** - Create ~/todo.txt if doesn't exist
+    - Check file existence on startup
+    - Create with helpful initial content
+    - Set proper file permissions
+
+### Priority 4: Error Handling & Reliability (Must Have)
+11. **File Lock Handling** - Handle concurrent access safely
+    - Detect if file is locked/in use
+    - Retry mechanism with exponential backoff
+    - Graceful error messages via TTS
+
+12. **Invalid File Content Handling** - Graceful degradation
+    - Handle malformed todo.txt files
+    - Skip unparseable lines
+    - Preserve user data even with formatting issues
+
+### Priority 5: User Experience Polish (Nice to Have)
+13. **Smart Task Prioritization** - Intelligent "what needs attention" ranking
+    - Detect urgency keywords (urgent, today, ASAP)
+    - Prioritize newer tasks
+    - Consider task length/complexity
+
+14. **Natural Language Confirmation** - Better voice feedback
+    - "I added 'call dentist' to your list"
+    - "I marked 'buy groceries' as complete"
+    - "You have 5 tasks remaining"
+
+15. **File Location Configuration** - Allow custom todo.txt location
+    - Support environment variable override
+    - Validate file path accessibility
+
+## Development Approach
+1. **Build incrementally** - Start with basic file read/write, add commands one by one
+2. **Test with real todo.txt files** - Use actual existing user files for testing
+3. **Maintain voice-first UX** - All functionality accessible via voice only
+4. **Keep simple file format** - Stick to plain text, human-readable format
+5. **Ensure data safety** - Never lose user tasks, always backup before changes
+
+**Goal**: Transform current voice-only demo into fully functional todo.txt file manager that replaces manual file editing entirely.

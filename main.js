@@ -17,6 +17,8 @@ class JarvisApp {
     this.mainWindow = new BrowserWindow({
       width: 400,
       height: 600,
+      minWidth: 350,
+      minHeight: 400,
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
@@ -26,9 +28,9 @@ class JarvisApp {
         allowRunningInsecureContent: true,
         experimentalFeatures: true
       },
-      titleBarStyle: 'hiddenInset',
-      resizable: false,
-      alwaysOnTop: true,
+      titleBarStyle: 'default',
+      resizable: true,
+      alwaysOnTop: false,
       skipTaskbar: false
     });
 

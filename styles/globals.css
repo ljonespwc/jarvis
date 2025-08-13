@@ -34,18 +34,30 @@ h1 {
 
 .voice-indicators {
   display: flex;
-  gap: 20px;
+  flex-direction: column;
+  gap: 15px;
   margin: 30px 0;
-  justify-content: center;
+  align-items: center;
 }
 
 .speaker-card {
-  background: rgba(255, 255, 255, 0.1);
   border-radius: 12px;
   padding: 16px;
   text-align: center;
-  min-width: 120px;
+  min-width: 280px;
   transition: all 0.3s ease;
+}
+
+/* JARVIS card - Purple theme */
+.speaker-agent {
+  background: rgba(147, 51, 234, 0.2) !important;
+  border: 1px solid rgba(147, 51, 234, 0.3);
+}
+
+/* You card - Blue theme */
+.speaker-user {
+  background: rgba(59, 130, 246, 0.2) !important;
+  border: 1px solid rgba(59, 130, 246, 0.3);
 }
 
 .speaker-card.active {
@@ -87,7 +99,7 @@ h1 {
 }
 
 .speaker-card.speaking .bar {
-  background: #10b981;
+  background: #a855f7;
   animation: pulse-bar 0.1s ease;
 }
 

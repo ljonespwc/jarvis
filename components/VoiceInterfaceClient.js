@@ -118,11 +118,11 @@ export default function VoiceInterfaceClient() {
     <>
       <div className="header">
         <h1>JARVIS</h1>
-        <p className="subtitle">Voice Todo Assistant</p>
+        <p className="subtitle">Productivity Assistant</p>
       </div>
       
       <div className="voice-indicators">
-        {/* Agent (JARVIS) Speaking Indicator */}
+        {/* Agent (JARVIS) Speaking Indicator - Top */}
         <SpeakerCard 
           emoji="🤖"
           name="JARVIS"
@@ -132,7 +132,7 @@ export default function VoiceInterfaceClient() {
           type="agent"
         />
 
-        {/* User Speaking Indicator */}  
+        {/* User Speaking Indicator - Bottom */}  
         <SpeakerCard 
           emoji="🎤"
           name="You"
@@ -145,11 +145,6 @@ export default function VoiceInterfaceClient() {
       
       <div className="status">{status}</div>
       {error && <div className="error">{error}</div>}
-      
-      <div className="help-text">
-        JARVIS listens automatically. Try saying:<br />
-        "What needs my attention?" • "Add walk the dog" • "Mark groceries done"
-      </div>
     </>
   )
 }
@@ -160,7 +155,7 @@ function SpeakerCard({ emoji, name, amplitude, speaking, statusText, type }) {
   const height = Math.max(4, scaledAmplitude)
   
   return (
-    <div className={`speaker-card ${speaking ? (type === 'user' ? 'user-speaking' : 'speaking') : ''}`}>
+    <div className={`speaker-card speaker-${type} ${speaking ? (type === 'user' ? 'user-speaking' : 'speaking') : ''}`} data-type={type}>
       <div className="speaker-header">
         <span className="speaker-emoji">{emoji}</span>
         <span className="speaker-name">{name}</span>
