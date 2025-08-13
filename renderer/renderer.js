@@ -44,6 +44,10 @@ class JarvisUI {
         metadata: {
           sessionId: 'jarvis-' + Date.now()
         },
+        // Add debug logging to see all available events
+        onAny: (eventName, data) => {
+          console.log('🎧 Layercode event:', eventName, data);
+        },
         onConnect: ({ sessionId }) => {
           console.log('✅ Connected to Layercode:', sessionId);
           this.currentSessionId = sessionId;
@@ -124,58 +128,63 @@ class JarvisUI {
     console.log('🎨 Setting up visual feedback for automatic voice interaction');
   }
   
-  setListeningState(isListening) {
-    const voiceCircle = document.getElementById('voiceCircle');
-    if (!voiceCircle) return;
+  updateLiveSpeechIndicators(userAmplitude = 0, agentAmplitude = 0) {
+    // Update user speech indicator - like lickedin
+    const userIndicator = document.getElementById('userIndicator');
+    const userBars = userIndicator?.querySelectorAll('.bar');
+    const userStatus = userIndicator?.querySelector('.speaking-status');
     
-    voiceCircle.classList.remove('listening', 'speaking', 'user-speaking');
-    
-    if (isListening) {
-      voiceCircle.classList.add('listening');
-      voiceCircle.textContent = '🎤';
-      console.log('👀 Visual: Listening state (blue pulse)');
+    if (userBars) {
+      const isUserSpeaking = userAmplitude > 0.01;
+      userIndicator.classList.toggle('user-speaking', isUserSpeaking);
+      
+      userBars.forEach((bar, i) => {
+        // Scale bars based on actual amplitude like lickedin: Math.max(8, amplitude * 15)
+        const height = Math.max(4, userAmplitude * 30);
+        bar.style.height = `${height}px`;
+        bar.style.animationDelay = `${i * 0.1}s`;
+      });
+      
+      if (userStatus) {
+        userStatus.textContent = isUserSpeaking ? 'Speaking...' : 'Listening';
+      }
     }
-  }
-  
-  setSpeakingState(isSpeaking) {
-    const voiceCircle = document.getElementById('voiceCircle');
-    if (!voiceCircle) return;
     
-    if (isSpeaking) {
-      voiceCircle.classList.remove('listening', 'user-speaking');
-      voiceCircle.classList.add('speaking');
-      voiceCircle.textContent = '🗣️';
-      console.log('👀 Visual: Agent speaking state (green pulse)');
+    // Update agent (JARVIS) speech indicator  
+    const agentIndicator = document.getElementById('agentIndicator');
+    const agentBars = agentIndicator?.querySelectorAll('.bar');
+    const agentStatus = agentIndicator?.querySelector('.speaking-status');
+    
+    if (agentBars) {
+      const isAgentSpeaking = agentAmplitude > 0.01;
+      agentIndicator.classList.toggle('speaking', isAgentSpeaking);
+      
+      agentBars.forEach((bar, i) => {
+        const height = Math.max(4, agentAmplitude * 30);
+        bar.style.height = `${height}px`;
+        bar.style.animationDelay = `${i * 0.1}s`;
+      });
+      
+      if (agentStatus) {
+        agentStatus.textContent = isAgentSpeaking ? 'Speaking...' : 'Ready';
+      }
     }
-  }
-  
-  setUserSpeakingState(userSpeaking) {
-    const voiceCircle = document.getElementById('voiceCircle');
-    if (!voiceCircle) return;
     
-    if (userSpeaking) {
-      voiceCircle.classList.remove('listening', 'speaking');
-      voiceCircle.classList.add('user-speaking');
-      voiceCircle.textContent = '🎙️';
-      console.log('👀 Visual: User speaking state (intense blue pulse)');
+    // Debug logging
+    if (userAmplitude > 0 || agentAmplitude > 0) {
+      console.log('🎤 Live audio:', { 
+        user: userAmplitude?.toFixed(3), 
+        agent: agentAmplitude?.toFixed(3) 
+      });
     }
   }
 
   updateVisualFeedback(data) {
-    // Debug audio amplitude data
-    if (data && (data.userAudioAmplitude > 0 || data.agentAudioAmplitude > 0)) {
-      console.log('🎧 Audio data:', { 
-        user: data.userAudioAmplitude?.toFixed(3), 
-        agent: data.agentAudioAmplitude?.toFixed(3) 
-      });
-    }
+    // Use actual Layercode amplitude data for live speech indicators
+    const userAmp = data?.userAudioAmplitude || 0;
+    const agentAmp = data?.agentAudioAmplitude || 0;
     
-    // Auto-trigger based on amplitude if available
-    if (data?.userAudioAmplitude > 0.01) {
-      this.setUserSpeakingState(true);
-    } else if (data?.agentAudioAmplitude > 0.01) {
-      this.setSpeakingState(true);
-    }
+    this.updateLiveSpeechIndicators(userAmp, agentAmp);
   }
   
   handleVoiceError(error) {
