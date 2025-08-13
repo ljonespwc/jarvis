@@ -18,5 +18,10 @@ contextBridge.exposeInMainWorld('jarvisAPI', {
   onVoiceStatus: (callback) => {
     ipcRenderer.on('voice-status', (event, status) => callback(status));
     return () => ipcRenderer.removeAllListeners('voice-status');
+  },
+  
+  onVoiceResponse: (callback) => {
+    ipcRenderer.on('voice-response', (event, response) => callback(response));
+    return () => ipcRenderer.removeAllListeners('voice-response');
   }
 });

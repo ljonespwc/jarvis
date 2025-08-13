@@ -6,18 +6,19 @@ class JarvisUI {
     this.micButton = document.getElementById('micButton');
     this.statusDiv = document.getElementById('status');
     this.errorDiv = document.getElementById('error');
+    this.todosDiv = document.getElementById('todos');
     this.layercodeClient = null;
+    this.currentSessionId = null;
     
     this.initializeLayercode();
     this.setupEventListeners();
   }
-
+  
   async initializeLayercode() {
     try {
       console.log('🎤 Initializing Layercode client...');
       
       // Get voice config from main process
-      console.log('🔧 Getting voice config...');
       const voiceConfig = await window.jarvisAPI.getVoiceConfig();
       console.log('🔧 Voice config received:', voiceConfig);
       
@@ -25,17 +26,13 @@ class JarvisUI {
         throw new Error(voiceConfig.error);
       }
 
-      console.log('🔧 Creating Layercode client with config:', {
-        pipelineId: voiceConfig.pipelineId,
-        authEndpoint: voiceConfig.authEndpoint
-      });
-
       this.layercodeClient = new LayercodeClient({
         pipelineId: voiceConfig.pipelineId,
         authorizeSessionEndpoint: voiceConfig.authEndpoint,
         onConnect: ({ sessionId }) => {
           console.log('✅ Connected to Layercode:', sessionId);
-          this.updateStatus('Connected - ready for voice commands');
+          this.currentSessionId = sessionId;
+          this.updateStatus('Ready - Click microphone to speak');
         },
         onDisconnect: () => {
           console.log('🔌 Disconnected from Layercode');
@@ -47,73 +44,105 @@ class JarvisUI {
           console.error('❌ Layercode error:', error);
           this.handleVoiceError(error);
         },
-        onStatus: (status) => {
-          console.log('📡 Layercode status:', status);
-          this.updateStatus(`Status: ${status}`);
-        },
-        onResponse: (response) => {
-          console.log('🗣️ Voice response received:', response);
-          this.handleVoiceResponse(response);
-        },
         onTranscript: (transcript) => {
           console.log('📝 Transcript:', transcript);
-          this.updateStatus(`Heard: "${transcript}"`);
+          this.updateStatus(`Processing: "${transcript}"`);
+          // Send transcript to our Vercel webhook
+          this.sendToVercelWebhook(transcript);
         },
         onTurnStarted: () => {
           console.log('🎤 Turn started');
+          this.updateStatus('Listening...');
         },
         onTurnFinished: () => {
           console.log('🛑 Turn finished');
+          this.updateStatus('Processing...');
         }
       });
 
-      console.log('🔧 Layercode client created, attempting to connect...');
-      
       // Connect to the pipeline
       this.layercodeClient.connect();
       console.log('🚀 Layercode client connection initiated');
       
     } catch (error) {
       console.error('❌ Failed to initialize Layercode:', error);
-      console.error('❌ Error stack:', error.stack);
       this.showError('Failed to initialize voice processing: ' + error.message);
     }
   }
-  
+
+  async sendToVercelWebhook(transcript) {
+    try {
+      console.log('📡 Sending to Vercel webhook:', transcript);
+      
+      const response = await fetch('https://jarvis-vert-eta.vercel.app/api/webhook', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          text: transcript,
+          type: 'transcription.completed',
+          session_id: this.currentSessionId,
+          turn_id: 'electron_' + Date.now()
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Webhook failed: ${response.status}`);
+      }
+
+      // Handle SSE response
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let responseText = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const eventData = JSON.parse(line.substring(6));
+              if (eventData.type === 'response.tts' && eventData.content) {
+                responseText = eventData.content;
+                this.updateStatus(`JARVIS: "${eventData.content}"`);
+                
+                // Auto-reset after 3 seconds
+                setTimeout(() => {
+                  this.updateStatus('Ready - Click microphone to speak');
+                  this.isListening = false;
+                  this.micButton.classList.remove('listening');
+                }, 3000);
+              }
+            } catch (e) {
+              console.log('Ignoring non-JSON SSE line:', line);
+            }
+          }
+        }
+      }
+
+      console.log('✅ Webhook response processed:', responseText);
+      
+    } catch (error) {
+      console.error('❌ Error sending to webhook:', error);
+      this.showError('Failed to process voice command: ' + error.message);
+    }
+  }
+
   setupEventListeners() {
     this.micButton.addEventListener('click', () => {
       this.toggleListening();
-    });
-    
-    window.jarvisAPI.onVoiceResult((result) => {
-      this.handleVoiceResult(result);
-    });
-    
-    window.jarvisAPI.onVoiceError((error) => {
-      this.handleVoiceError(error);
-    });
-    
-    window.jarvisAPI.onVoiceStatus((status) => {
-      this.updateStatus(status);
     });
   }
   
   async toggleListening() {
     try {
-      if (!this.layercodeClient) {
-        this.showError('Voice processing not initialized');
-        return;
-      }
-
       if (!this.isListening) {
         await this.startListening();
-        
-        // Auto-stop after 5 seconds for testing
-        setTimeout(() => {
-          if (this.isListening) {
-            this.stopListening();
-          }
-        }, 5000);
       } else {
         await this.stopListening();
       }
@@ -124,78 +153,52 @@ class JarvisUI {
   
   async startListening() {
     try {
-      console.log('🎤 Attempting to start listening...');
-      console.log('🔧 Layercode client available:', !!this.layercodeClient);
-      console.log('🔧 Available methods:', Object.keys(this.layercodeClient || {}));
-      
       if (!this.layercodeClient) {
         throw new Error('Layercode client not initialized');
       }
-
-      // Start Layercode voice processing
-      console.log('🔧 Calling triggerUserTurnStarted...');
+      
+      console.log('🎤 Starting voice capture...');
+      
       this.layercodeClient.triggerUserTurnStarted();
       
       this.isListening = true;
       this.micButton.classList.add('listening');
-      this.updateStatus('Listening... speak now');
       this.clearError();
       
-      console.log('🎤 Started voice listening via Layercode');
+      console.log('🎤 Voice capture started');
     } catch (error) {
       console.error('❌ Failed to start listening:', error);
-      console.error('❌ Error details:', error);
       this.showError('Failed to start voice capture: ' + error.message);
     }
   }
   
   async stopListening() {
     try {
-      // Stop Layercode voice processing
-      this.layercodeClient.triggerUserTurnFinished();
+      if (this.layercodeClient) {
+        this.layercodeClient.triggerUserTurnFinished();
+      }
       
       this.isListening = false;
       this.micButton.classList.remove('listening');
       this.updateStatus('Processing...');
       
-      console.log('🛑 Stopped voice listening');
+      console.log('🛑 Voice capture stopped');
     } catch (error) {
       console.error('❌ Failed to stop listening:', error);
       this.showError('Failed to stop voice capture: ' + error.message);
     }
   }
   
-  handleVoiceResponse(response) {
-    console.log('🎤 Voice response:', response);
-    
-    // Handle different types of responses from our webhook
-    if (response.type === 'todos_updated') {
-      console.log('📋 Todos updated');
-      this.updateStatus('Command processed - todo file updated');
-    } else {
-      this.updateStatus('Command processed');
-    }
-    
-    // Auto-reset after response
-    setTimeout(() => {
-      if (this.isListening) {
-        this.isListening = false;
-        this.micButton.classList.remove('listening');
-      }
-      this.updateStatus('Ready');
-    }, 3000);
-  }
   
   handleVoiceError(error) {
     console.error('❌ Voice error:', error);
-    this.showError('Voice recognition error: ' + error.message);
+    this.showError('Voice error: ' + error.message);
     
     // Reset listening state
     this.isListening = false;
     this.micButton.classList.remove('listening');
     this.updateStatus('Ready');
   }
-  
   
   updateStatus(message) {
     this.statusDiv.textContent = message;
@@ -208,12 +211,6 @@ class JarvisUI {
   
   clearError() {
     this.errorDiv.textContent = '';
-  }
-  
-  escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
   }
 }
 
