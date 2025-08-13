@@ -52,8 +52,6 @@ class JarvisUI {
           console.log('✅ Connected to Layercode:', sessionId);
           this.currentSessionId = sessionId;
           this.updateStatus('🎤 JARVIS is listening... Speak naturally');
-          // Start with listening state to show pulsing
-          this.setListeningState(true);
         },
         onDisconnect: () => {
           console.log('🔌 Disconnected from Layercode');
@@ -68,48 +66,36 @@ class JarvisUI {
         onTranscript: (transcript) => {
           console.log('📝 Voice input:', transcript.substring(0, 50));
           this.updateStatus(`You said: "${transcript}"`);
-          this.setListeningState(false);
         },
         onResponse: (response) => {
           console.log('🗣️ JARVIS response:', response.substring(0, 50));
           this.updateStatus(`🤖 JARVIS: "${response}"`);
-          this.setSpeakingState(true);
           
           // Auto-reset to listening after response
           setTimeout(() => {
             this.updateStatus('🎤 JARVIS is listening... Speak naturally');
-            this.setSpeakingState(false);
-            this.setListeningState(true);
           }, 4000);
         },
-        // Add audio amplitude detection like lickedin
-        onAudioData: (data) => {
-          if (data.userAudioAmplitude > 0.01) {
-            if (!this.userSpeaking) {
-              this.userSpeaking = true;
-              this.updateStatus('🎤 Listening to you...');
-            }
-          } else {
-            this.userSpeaking = false;
-          }
-          
-          if (data.agentAudioAmplitude > 0.01) {
-            this.agentSpeaking = true;
-          } else {
-            this.agentSpeaking = false;
-          }
-          
+        // Try different event names for audio data
+        onAudioLevel: (data) => {
+          console.log('🎧 onAudioLevel:', data);
+          this.updateVisualFeedback(data);
+        },
+        onAmplitudeData: (data) => {
+          console.log('🎧 onAmplitudeData:', data);
+          this.updateVisualFeedback(data);
+        },
+        onVoiceActivity: (data) => {
+          console.log('🎧 onVoiceActivity:', data);
           this.updateVisualFeedback(data);
         },
         onTurnStarted: () => {
           console.log('🎤 Turn started - user speaking');
-          this.setListeningState(false);
-          this.setUserSpeakingState(true);
+          this.updateStatus('🎤 Listening to you...');
         },
         onTurnFinished: () => {
           console.log('⏳ Processing...');
           this.updateStatus('⏳ JARVIS is thinking...');
-          this.setUserSpeakingState(false);
         }
       });
 
