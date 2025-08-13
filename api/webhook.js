@@ -1,16 +1,6 @@
-// Vercel serverless function for Layercode webhook
-const { OpenAI } = require('openai');
-
-// Layercode webhook signature verification
-function verifyWebhookSignature(payload, signature, secret) {
-  const crypto = require('crypto');
-  const expectedSignature = crypto
-    .createHmac('sha256', secret)
-    .update(payload)
-    .digest('hex');
-  
-  return `sha256=${expectedSignature}` === signature;
-}
+// JARVIS Layercode webhook - using proven pattern from lickedin project
+import { streamResponse } from '@layercode/node-server-sdk';
+import OpenAI from 'openai';
 
 // Initialize OpenAI client
 const openai = new OpenAI({
@@ -179,125 +169,84 @@ function generateDefaultResponse(actionName) {
   return responses[actionName] || "Task processed successfully.";
 }
 
-export default async function handler(req, res) {
-  // Use manual SSE implementation - this works reliably
-  return handleSSEResponse(req, res);
-}
-
-
-// SSE implementation for Layercode TTS responses
-async function handleSSEResponse(req, res) {
-  // Set SSE headers
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  try {
-    const { text, connection_id, session_id, type, turn_id } = req.body;
-    
-    if (type === 'session.start') {
-      const event = {
-        type: "response.tts",
-        content: 'Hello! I\'m JARVIS v1.0, your voice todo assistant. What can I help you with?',
-        turn_id: turn_id
-      };
-      res.write(`data: ${JSON.stringify(event)}\n\n`);
+export default async function handler(req) {
+  // Get request body first
+  const requestBody = await req.json();
+  
+  // Use actual Layercode SDK streamResponse - proven working pattern
+  return streamResponse(requestBody, async ({ stream }) => {
+    try {
+      const { text, type } = requestBody;
       
-      const endEvent = { type: "response.end", turn_id: turn_id };
-      res.write(`data: ${JSON.stringify(endEvent)}\n\n`);
-      res.end();
-      return;
-    }
-
-    if (!text || text.trim() === '') {
-      const event = {
-        type: "response.tts",
-        content: 'I didn\'t catch that. Could you please repeat?',
-        turn_id: turn_id
-      };
-      res.write(`data: ${JSON.stringify(event)}\n\n`);
-      
-      const endEvent = { type: "response.end", turn_id: turn_id };
-      res.write(`data: ${JSON.stringify(endEvent)}\n\n`);
-      res.end();
-      return;
-    }
-
-    console.log(`🎤 Processing voice command: "${text}"`);
-
-    // Process command with AI
-    const aiResult = await processCommand(text, todos);
-    console.log('🤖 AI Result:', aiResult);
-
-    let responseText = '';
-
-    // Execute the identified action (same logic as before)
-    if (aiResult.action === 'read_tasks') {
-      const limit = aiResult.parameters?.limit || 5;
-      const tasks = todos.active.slice(0, limit);
-      
-      if (tasks.length === 0) {
-        responseText = 'You have no active tasks right now. Great job!';
-      } else {
-        responseText = `You have ${tasks.length} priority tasks: ${tasks.join(', ')}`;
+      if (type === 'session.start') {
+        stream.tts('Hello! I\'m JARVIS, your voice todo assistant. What can I help you with?');
+        stream.end();
+        return;
       }
-    } else if (aiResult.action === 'add_task') {
-      const taskText = aiResult.parameters?.task;
-      if (taskText) {
-        todos.active.push(taskText);
-        responseText = `Added "${taskText}" to your todo list.`;
-      } else {
-        responseText = 'I couldn\'t understand what task to add. Please try again.';
+
+      if (!text || text.trim() === '') {
+        stream.tts('I didn\'t catch that. Could you please repeat?');
+        stream.end();
+        return;
       }
-    } else if (aiResult.action === 'mark_done') {
-      const taskMatch = aiResult.parameters?.task_match;
-      if (taskMatch) {
-        const taskIndex = todos.active.findIndex(task => 
-          task.toLowerCase().includes(taskMatch.toLowerCase())
-        );
+
+      console.log(`🎤 Processing voice command: "${text}"`);
+
+      // Process command with AI
+      const aiResult = await processCommand(text, todos);
+      console.log('🤖 AI Result:', aiResult);
+
+      let responseText = '';
+
+      // Execute the identified action
+      if (aiResult.action === 'read_tasks') {
+        const limit = aiResult.parameters?.limit || 5;
+        const tasks = todos.active.slice(0, limit);
         
-        if (taskIndex !== -1) {
-          const completedTask = todos.active.splice(taskIndex, 1)[0];
-          todos.completed.push(completedTask);
-          responseText = `Great! I've marked "${completedTask}" as completed.`;
+        if (tasks.length === 0) {
+          responseText = 'You have no active tasks right now. Great job!';
         } else {
-          responseText = `I couldn't find a task matching "${taskMatch}". Can you be more specific?`;
+          responseText = `You have ${tasks.length} priority tasks: ${tasks.join(', ')}`;
+        }
+      } else if (aiResult.action === 'add_task') {
+        const taskText = aiResult.parameters?.task;
+        if (taskText) {
+          todos.active.push(taskText);
+          responseText = `Added "${taskText}" to your todo list.`;
+        } else {
+          responseText = 'I couldn\'t understand what task to add. Please try again.';
+        }
+      } else if (aiResult.action === 'mark_done') {
+        const taskMatch = aiResult.parameters?.task_match;
+        if (taskMatch) {
+          const taskIndex = todos.active.findIndex(task => 
+            task.toLowerCase().includes(taskMatch.toLowerCase())
+          );
+          
+          if (taskIndex !== -1) {
+            const completedTask = todos.active.splice(taskIndex, 1)[0];
+            todos.completed.push(completedTask);
+            responseText = `Great! I've marked "${completedTask}" as completed.`;
+          } else {
+            responseText = `I couldn't find a task matching "${taskMatch}". Can you be more specific?`;
+          }
+        } else {
+          responseText = 'I couldn\'t understand which task to mark as done. Please try again.';
         }
       } else {
-        responseText = 'I couldn\'t understand which task to mark as done. Please try again.';
+        responseText = aiResult.response || 'I didn\'t understand that command. Try asking "What needs my attention?" or "Add [task name]".';
       }
-    } else {
-      responseText = aiResult.response || 'I didn\'t understand that command. Try asking "What needs my attention?" or "Add [task name]".';
+
+      console.log(`🗣️ Speaking: ${responseText}`);
+      
+      // Send TTS response through Layercode SDK
+      stream.tts(responseText);
+      stream.end();
+
+    } catch (error) {
+      console.error('❌ Error in webhook:', error);
+      stream.tts('Sorry, I encountered an error processing that request.');
+      stream.end();
     }
-
-    console.log(`🗣️ Speaking: ${responseText}`);
-    
-    // Send TTS event
-    const ttsEvent = {
-      type: "response.tts",
-      content: responseText,
-      turn_id: turn_id
-    };
-    res.write(`data: ${JSON.stringify(ttsEvent)}\n\n`);
-    
-    // Send end event
-    const endEvent = { type: "response.end", turn_id: turn_id };
-    res.write(`data: ${JSON.stringify(endEvent)}\n\n`);
-    res.end();
-
-  } catch (error) {
-    console.error('❌ Error in manual SSE:', error);
-    const errorEvent = {
-      type: "response.tts",
-      content: 'Sorry, I encountered an error processing that request.',
-      turn_id: req.body?.turn_id
-    };
-    res.write(`data: ${JSON.stringify(errorEvent)}\n\n`);
-    
-    const endEvent = { type: "response.end", turn_id: req.body?.turn_id };
-    res.write(`data: ${JSON.stringify(endEvent)}\n\n`);
-    res.end();
-  }
+  });
 }

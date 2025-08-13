@@ -16,7 +16,8 @@ class VoiceManager extends EventEmitter {
         throw new Error('LAYERCODE_PIPELINE_ID not found in environment variables');
       }
       
-      console.log('✅ VoiceManager initialized for Layercode webhook integration');
+      console.log('✅ VoiceManager initialized for Layercode frontend SDK integration');
+      console.log('ℹ️  Voice processing will be handled by frontend Layercode SDK');
       return true;
     } catch (error) {
       console.error('❌ Failed to initialize VoiceManager:', error);
@@ -68,7 +69,8 @@ class VoiceManager extends EventEmitter {
   getConnectionInfo() {
     return {
       pipelineId: this.pipelineId,
-      isListening: this.isListening
+      isListening: this.isListening,
+      integrationMode: 'layercode-frontend-sdk'
     };
   }
 

@@ -18,16 +18,19 @@ class JarvisUI {
     try {
       console.log('🎤 Initializing Layercode client...');
       
-      // Get voice config from main process
-      const voiceConfig = await window.jarvisAPI.getVoiceConfig();
-      console.log('🔧 Voice config received:', voiceConfig);
+      // Get authorization from our API endpoint
+      const authResponse = await fetch('https://jarvis-vert-eta.vercel.app/api/authorize');
+      const authData = await authResponse.json();
       
-      if (voiceConfig.error) {
-        throw new Error(voiceConfig.error);
+      if (!authResponse.ok || authData.error) {
+        throw new Error(authData.message || 'Failed to authorize session');
       }
 
+      console.log('🔧 Authorization received:', authData);
+
       this.layercodeClient = new LayercodeClient({
-        pipelineId: voiceConfig.pipelineId,
+        pipelineId: authData.pipelineId,
+        apiKey: authData.apiKey,
         onConnect: ({ sessionId }) => {
           console.log('✅ Connected to Layercode:', sessionId);
           this.currentSessionId = sessionId;
@@ -44,10 +47,19 @@ class JarvisUI {
           this.handleVoiceError(error);
         },
         onTranscript: (transcript) => {
-          console.log('📝 Transcript:', transcript);
+          console.log('📝 Transcript received:', transcript);
           this.updateStatus(`Processing: "${transcript}"`);
-          // Send transcript to our Vercel webhook
-          this.sendToVercelWebhook(transcript);
+        },
+        onResponse: (response) => {
+          console.log('🤖 AI Response:', response);
+          this.updateStatus(`JARVIS: "${response}"`);
+          
+          // Auto-reset after 3 seconds
+          setTimeout(() => {
+            this.updateStatus('Ready - Click microphone to speak');
+            this.isListening = false;
+            this.micButton.classList.remove('listening');
+          }, 3000);
         },
         onTurnStarted: () => {
           console.log('🎤 Turn started');
@@ -60,8 +72,8 @@ class JarvisUI {
       });
 
       // Connect to the pipeline
-      this.layercodeClient.connect();
-      console.log('🚀 Layercode client connection initiated');
+      await this.layercodeClient.connect();
+      console.log('🚀 Layercode client connected successfully');
       
     } catch (error) {
       console.error('❌ Failed to initialize Layercode:', error);
@@ -69,68 +81,6 @@ class JarvisUI {
     }
   }
 
-  async sendToVercelWebhook(transcript) {
-    try {
-      console.log('📡 Sending to Vercel webhook:', transcript);
-      
-      const response = await fetch('https://jarvis-vert-eta.vercel.app/api/webhook', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          text: transcript,
-          type: 'transcription.completed',
-          session_id: this.currentSessionId,
-          turn_id: 'electron_' + Date.now()
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Webhook failed: ${response.status}`);
-      }
-
-      // Handle SSE response
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let responseText = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
-        
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const eventData = JSON.parse(line.substring(6));
-              if (eventData.type === 'response.tts' && eventData.content) {
-                responseText = eventData.content;
-                this.updateStatus(`JARVIS: "${eventData.content}"`);
-                
-                // Auto-reset after 3 seconds
-                setTimeout(() => {
-                  this.updateStatus('Ready - Click microphone to speak');
-                  this.isListening = false;
-                  this.micButton.classList.remove('listening');
-                }, 3000);
-              }
-            } catch (e) {
-              console.log('Ignoring non-JSON SSE line:', line);
-            }
-          }
-        }
-      }
-
-      console.log('✅ Webhook response processed:', responseText);
-      
-    } catch (error) {
-      console.error('❌ Error sending to webhook:', error);
-      this.showError('Failed to process voice command: ' + error.message);
-    }
-  }
 
   setupEventListeners() {
     this.micButton.addEventListener('click', () => {
