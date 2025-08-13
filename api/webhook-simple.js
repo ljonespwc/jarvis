@@ -7,22 +7,13 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Dynamic import for TodoFileManager (CommonJS module)
-let TodoFileManager;
-try {
-  const TodoFileManagerModule = await import(path.join(__dirname, '..', 'src', 'TodoFileManager.js'));
-  TodoFileManager = TodoFileManagerModule.default;
-} catch (error) {
-  console.error('❌ Failed to load TodoFileManager:', error);
-}
-
 // Initialize OpenAI client
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
-// Initialize TodoFileManager
-const todoManager = TodoFileManager ? new TodoFileManager() : null;
+// TodoFileManager will be loaded dynamically in the handler
+let todoManager = null;
 
 export default async function handler(req, res) {
   // Handle OPTIONS request for CORS
@@ -79,6 +70,17 @@ export default async function handler(req, res) {
       res.write(`data: ${JSON.stringify({ type: 'response.end' })}\n\n`);
       res.end();
       return;
+    }
+
+    // Load TodoFileManager dynamically if not already loaded
+    if (!todoManager) {
+      try {
+        const TodoFileManagerModule = await import(path.join(__dirname, '..', 'src', 'TodoFileManager.js'));
+        const TodoFileManager = TodoFileManagerModule.default;
+        todoManager = new TodoFileManager();
+      } catch (error) {
+        console.error('❌ Failed to load TodoFileManager:', error);
+      }
     }
 
     // Process commands with real file operations
