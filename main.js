@@ -79,8 +79,18 @@ class JarvisApp {
 const jarvisApp = new JarvisApp();
 
 app.whenReady().then(async () => {
-  // Just disable security warnings
+  // Just disable security warnings and camera warnings
   process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
+  
+  // Suppress only the camera warning in stderr
+  const originalStderrWrite = process.stderr.write;
+  process.stderr.write = function(string, encoding, fd) {
+    if (typeof string === 'string' && 
+        string.includes('AVCaptureDeviceTypeExternal is deprecated for Continuity Cameras')) {
+      return true; // Suppress camera deprecation warning
+    }
+    return originalStderrWrite.call(this, string, encoding, fd);
+  };
 
   await jarvisApp.initialize();
   jarvisApp.setupIPC();

@@ -165,8 +165,8 @@ class JarvisUI {
       userIndicator.classList.toggle('user-speaking', isUserSpeaking);
       
       userBars.forEach((bar, i) => {
-        // Scale up small Layercode amplitude values (0.002-0.3) to visible heights (4-60px)
-        const height = Math.max(4, userAmplitude * 200);
+        // Scale user amplitude to match agent levels (user tends to be quieter)
+        const height = Math.max(4, userAmplitude * 300);
         bar.style.height = `${height}px`;
         bar.style.animationDelay = `${i * 0.1}s`;
       });
@@ -187,8 +187,8 @@ class JarvisUI {
       agentIndicator.classList.toggle('speaking', isAgentSpeaking);
       
       agentBars.forEach((bar, i) => {
-        // Scale up small Layercode amplitude values to visible heights
-        const height = Math.max(4, agentAmplitude * 200);
+        // Scale agent amplitude (agent tends to be louder, so scale down slightly)
+        const height = Math.max(4, agentAmplitude * 180);
         bar.style.height = `${height}px`;
         bar.style.animationDelay = `${i * 0.1}s`;
       });
