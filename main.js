@@ -83,12 +83,21 @@ app.whenReady().then(async () => {
   // Just disable security warnings and camera warnings
   process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
   
-  // Suppress only the camera warning in stderr
+  // Comprehensive stderr suppression for cleaner terminal output
   const originalStderrWrite = process.stderr.write;
   process.stderr.write = function(string, encoding, fd) {
-    if (typeof string === 'string' && 
-        string.includes('AVCaptureDeviceTypeExternal is deprecated for Continuity Cameras')) {
-      return true; // Suppress camera deprecation warning
+    if (typeof string === 'string') {
+      // Suppress Chrome DevTools protocol spam
+      if (string.includes('Request Network.enable failed') ||
+          string.includes('Request Network.setAttachDebugStack failed') ||
+          string.includes('Request Emulation.setEmulatedMedia failed') ||
+          string.includes('Request Emulation.setEmulatedVisionDeficiency failed') ||
+          string.includes('Request Network.clearAcceptedEncodingsOverride failed') ||
+          string.includes('devtools://devtools/bundled/core/protocol_client') ||
+          // Suppress camera deprecation warnings
+          string.includes('AVCaptureDeviceTypeExternal is deprecated for Continuity Cameras')) {
+        return true; // Suppress these messages
+      }
     }
     return originalStderrWrite.call(this, string, encoding, fd);
   };

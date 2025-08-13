@@ -24,7 +24,11 @@ export default function VoiceInterfaceClient() {
           message.includes('webSecurity') ||
           message.includes('allowRunningInsecureContent') ||
           message.includes('Content-Security-Policy') ||
-          message.includes('Electron Security Warning')) {
+          message.includes('Electron Security Warning') ||
+          message.includes('Unknown message type received') ||
+          message.includes('speech_end_tracking') ||
+          message.includes('vad_events') ||
+          message.includes('trigger.response.audio.replay_finished')) {
         return
       }
       originalWarn.apply(console, args)
@@ -35,7 +39,11 @@ export default function VoiceInterfaceClient() {
       if (message.includes('Electron Security Warning') ||
           message.includes('webSecurity') ||
           message.includes('Content-Security-Policy') ||
-          message.includes('allowRunningInsecureContent')) {
+          message.includes('allowRunningInsecureContent') ||
+          message.includes('Unknown message type received') ||
+          message.includes('speech_end_tracking') ||
+          message.includes('vad_events') ||
+          message.includes('trigger.response.audio.replay_finished')) {
         return
       }
       originalError.apply(console, args)
