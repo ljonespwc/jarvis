@@ -1,13 +1,31 @@
 // Vercel serverless function for Layercode webhook
 const { OpenAI } = require('openai');
 
-// Dynamic import for Layercode SDK (ES module)
-let layercodeSDK = null;
-async function getLayercodeSDK() {
-  if (!layercodeSDK) {
-    layercodeSDK = await import('@layercode/node-server-sdk');
+// Dynamic import for Layercode SDK (ES module) 
+let streamResponse = null;
+async function getLayercodeStreamResponse() {
+  if (!streamResponse) {
+    try {
+      const sdk = await import('@layercode/node-server-sdk');
+      console.log('SDK imported, available exports:', Object.keys(sdk));
+      
+      // Try different ways to get streamResponse
+      streamResponse = sdk.streamResponse || 
+                      sdk.default?.streamResponse || 
+                      sdk.default ||
+                      sdk.streamResponse;
+                      
+      if (!streamResponse) {
+        throw new Error('streamResponse not found in any expected location');
+      }
+      console.log('✅ streamResponse function found');
+      
+    } catch (error) {
+      console.error('❌ SDK import error:', error);
+      throw error;
+    }
   }
-  return layercodeSDK;
+  return streamResponse;
 }
 
 // Initialize OpenAI client
@@ -190,27 +208,21 @@ function verifyWebhookSignature(payload, signature, secret) {
 
 export default async function handler(req, res) {
   try {
-    // Get Layercode SDK
-    const sdk = await getLayercodeSDK();
+    // Try to get Layercode SDK streamResponse
+    const layercodeStreamResponse = await getLayercodeStreamResponse();
     
-    // Try different import patterns for streamResponse
-    const streamResponse = sdk.streamResponse || sdk.default?.streamResponse || sdk.default;
-    
-    if (!streamResponse) {
-      console.error('streamResponse not found in SDK:', Object.keys(sdk));
-      throw new Error('streamResponse not available');
-    }
+    console.log('🚀 Using Layercode SDK streamResponse');
     
     // Use Layercode's streamResponse to handle SSE properly
-    return streamResponse(req, async ({ stream }) => {
+    return layercodeStreamResponse(req, async ({ stream }) => {
       await handleVoiceCommand(req.body, stream);
     })(req, res);
     
   } catch (error) {
     console.error('❌ Webhook error:', error);
-    console.error('SDK import failed, falling back to manual SSE');
+    console.error('🔄 SDK import failed, falling back to manual SSE');
     
-    // Fallback to manual SSE implementation
+    // Fallback to manual SSE implementation (this is working!)
     return handleSSEManually(req, res);
   }
 }
