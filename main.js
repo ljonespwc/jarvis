@@ -6,13 +6,20 @@ const url = require('url');
 require('dotenv').config();
 
 const VoiceManager = require('./src/VoiceManager');
-const TodoFileManager = require('./src/TodoFileManager');
+
+let TodoFileManager;
+try {
+  TodoFileManager = require('./src/TodoFileManager');
+  console.log('✅ TodoFileManager loaded successfully');
+} catch (error) {
+  console.error('❌ Failed to load TodoFileManager:', error);
+}
 
 class JarvisApp {
   constructor() {
     this.mainWindow = null;
     this.voiceManager = new VoiceManager();
-    this.todoManager = new TodoFileManager();
+    this.todoManager = TodoFileManager ? new TodoFileManager() : null;
     this.localServer = null;
     this.serverPort = 47821;
   }
@@ -112,29 +119,33 @@ class JarvisApp {
                 
                 let result;
                 
-                switch (action) {
-                  case 'read_tasks':
-                    result = await this.todoManager.getActiveTasks();
-                    break;
-                    
-                  case 'get_priority_tasks':
-                    result = await this.todoManager.getPriorityTasks(data?.count || 3);
-                    break;
-                    
-                  case 'add_task':
-                    result = await this.todoManager.addTask(data.text);
-                    break;
-                    
-                  case 'mark_done':
-                    result = await this.todoManager.markTaskDone(data.query);
-                    break;
-                    
-                  case 'get_stats':
-                    result = await this.todoManager.getStats();
-                    break;
-                    
-                  default:
-                    result = { error: 'Unknown action' };
+                if (!this.todoManager) {
+                  result = { error: 'TodoFileManager not available' };
+                } else {
+                  switch (action) {
+                    case 'read_tasks':
+                      result = await this.todoManager.getActiveTasks();
+                      break;
+                      
+                    case 'get_priority_tasks':
+                      result = await this.todoManager.getPriorityTasks(data?.count || 3);
+                      break;
+                      
+                    case 'add_task':
+                      result = await this.todoManager.addTask(data.text);
+                      break;
+                      
+                    case 'mark_done':
+                      result = await this.todoManager.markTaskDone(data.query);
+                      break;
+                      
+                    case 'get_stats':
+                      result = await this.todoManager.getStats();
+                      break;
+                      
+                    default:
+                      result = { error: 'Unknown action' };
+                  }
                 }
                 
                 res.writeHead(200, { 'Content-Type': 'application/json' });
