@@ -26,6 +26,8 @@ class JarvisApp {
     this.todoManager = TodoFileManager ? new TodoFileManager() : null;
     this.localServer = null;
     this.serverPort = 47821;
+    this.sessionId = null; // Will be set from React component
+    this.bridgeConnected = false;
     
     // Initialize OpenAI client for local webhook processing
     this.openai = new OpenAI({
@@ -99,6 +101,13 @@ class JarvisApp {
   async initialize() {
     await this.voiceManager.initialize();
     await this.startLocalServer();
+    
+    // Set up IPC for sessionId from renderer
+    ipcMain.on('set-session-id', (event, sessionId) => {
+      console.log('📡 Received sessionId from renderer:', sessionId);
+      this.sessionId = sessionId;
+      this.connectToBridge();
+    });
   }
 
   async startLocalServer() {
@@ -154,6 +163,11 @@ class JarvisApp {
                       
                     case 'get_stats':
                       result = await this.todoManager.getStats();
+                      break;
+                      
+                    case 'process_command':
+                      // Process voice command and return response text
+                      result = await this.processVoiceCommand(data.text);
                       break;
                       
                     default:
@@ -342,6 +356,65 @@ class JarvisApp {
       console.error('❌ Error processing voice command:', error);
       return "Sorry, I had trouble processing that request. Please try again.";
     }
+  }
+
+  async connectToBridge() {
+    if (!this.sessionId) {
+      console.log('⏳ Waiting for sessionId from renderer...');
+      return;
+    }
+    
+    console.log('🌉 Connecting to JARVIS Bridge with session:', this.sessionId);
+    
+    const pollForCommands = async () => {
+      try {
+        const response = await fetch(`https://jarvis-vert-eta.vercel.app/api/websocket?sessionId=${this.sessionId}`, {
+          method: 'GET'
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          
+          if (data.type === 'command') {
+            console.log('📨 Received command from bridge:', data.command);
+            
+            // Process command locally
+            const result = await this.processVoiceCommand(data.data.text || data.data);
+            
+            // Send response back to bridge
+            await fetch(`https://jarvis-vert-eta.vercel.app/api/websocket?sessionId=${this.sessionId}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                type: 'response',
+                data: result
+              })
+            });
+            
+            console.log('📤 Sent response back to bridge');
+          }
+          
+          if (!this.bridgeConnected) {
+            this.bridgeConnected = true;
+            console.log('✅ Connected to JARVIS Bridge');
+          }
+          
+        } else {
+          console.error('❌ Bridge polling error:', response.status);
+        }
+        
+      } catch (error) {
+        if (this.bridgeConnected) {
+          console.error('❌ Lost connection to bridge:', error.message);
+          this.bridgeConnected = false;
+        }
+      }
+      
+      // Continue polling
+      setTimeout(pollForCommands, 2000); // Poll every 2 seconds
+    };
+    
+    pollForCommands();
   }
 }
 

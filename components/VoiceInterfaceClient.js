@@ -4,6 +4,34 @@ import { useLayercodePipeline } from '@layercode/react-sdk'
 export default function VoiceInterfaceClient() {
   const [status, setStatus] = useState('Initializing JARVIS...')
   const [error, setError] = useState('')
+  const [isProcessing, setIsProcessing] = useState(false)
+  
+  // Local TTS using Web Speech API
+  const speakResponse = (text) => {
+    if ('speechSynthesis' in window) {
+      const utterance = new SpeechSynthesisUtterance(text)
+      utterance.rate = 0.9
+      utterance.pitch = 1.0
+      utterance.volume = 1.0
+      
+      // Use a more natural voice if available
+      const voices = speechSynthesis.getVoices()
+      const preferredVoice = voices.find(voice => 
+        voice.name.includes('Samantha') || 
+        voice.name.includes('Alex') ||
+        voice.name.includes('Daniel') ||
+        voice.default
+      )
+      if (preferredVoice) {
+        utterance.voice = preferredVoice
+      }
+      
+      console.log('🗣️ Speaking with Web Speech API:', text.substring(0, 50))
+      speechSynthesis.speak(utterance)
+    } else {
+      console.log('❌ Web Speech API not available')
+    }
+  }
   
   // Console suppression (preserve from vanilla JS version)
   useEffect(() => {
@@ -65,14 +93,47 @@ export default function VoiceInterfaceClient() {
     }
   }, [])
 
-  // Layercode React SDK integration
-  const {
-    status: layercodeStatus,
-    userAudioAmplitude = 0,
-    agentAudioAmplitude = 0,
-    triggerUserTurnStarted,
-    triggerUserTurnFinished
-  } = useLayercodePipeline({
+  // Local voice command processing
+  const processVoiceCommand = async (transcript) => {
+    if (isProcessing) return
+    
+    setIsProcessing(true)
+    setStatus('⏳ JARVIS is thinking...')
+    
+    try {
+      // Call local server for todo operations (using existing local server)
+      const response = await fetch('http://localhost:47821/todo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          action: 'process_command', 
+          data: { text: transcript } 
+        })
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to process command locally')
+      }
+      
+      const result = await response.json()
+      
+      if (result.success) {
+        // Use Layercode SDK to speak the response
+        return result.data
+      } else {
+        throw new Error(result.error || 'Unknown error')
+      }
+      
+    } catch (error) {
+      console.error('❌ Error processing voice command:', error)
+      return "Sorry, I had trouble processing that request. Please try again."
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  // Layercode React SDK integration - LOCAL PROCESSING MODE
+  const sdkResult = useLayercodePipeline({
     pipelineId: 'l7l2bv2c',
     authorizeSessionEndpoint: 'https://jarvis-vert-eta.vercel.app/api/authorize',
     metadata: {
@@ -80,7 +141,16 @@ export default function VoiceInterfaceClient() {
     },
     onConnect: ({ sessionId }) => {
       console.log('✅ Connected to Layercode:', sessionId)
+      console.log('🔍 SDK Result available functions:', Object.keys(sdkResult))
       setStatus('🎤 JARVIS is listening... Speak naturally')
+      
+      // Send sessionId to main process for bridge connection
+      if (window.electronAPI) {
+        window.electronAPI.setSessionId(sessionId)
+      }
+      
+      // No intro message - let Layercode handle session.start
+      console.log('✅ Ready for voice commands - intro handled by Layercode')
     },
     onDisconnect: () => {
       console.log('🔌 Disconnected from Layercode')
@@ -91,28 +161,63 @@ export default function VoiceInterfaceClient() {
       setError('Voice error: ' + error.message)
       setTimeout(() => setError(''), 5000)
     },
-    onTranscript: (transcript) => {
+    onTranscript: async (transcript) => {
       console.log('📝 Voice input:', transcript.substring(0, 50))
       setStatus(`You said: "${transcript}"`)
+      
+      // Process the command locally and speak the response
+      const response = await processVoiceCommand(transcript)
+      
+      if (speak && response) {
+        console.log('🗣️ JARVIS response:', response.substring(0, 50))
+        speak(response)
+        setStatus(`🤖 JARVIS: "${response.substring(0, 50)}..."`)
+        
+        // Auto-reset to listening after response
+        setTimeout(() => {
+          setStatus('🎤 JARVIS is listening... Speak naturally')
+        }, 4000)
+      }
     },
     onTurnStarted: () => {
       console.log('🎤 Turn started - user speaking')
       setStatus('🎤 Listening to you...')
     },
-    onTurnFinished: () => {
-      console.log('⏳ Processing...')
-      setStatus('⏳ JARVIS is thinking...')
-    },
-    onResponse: (response) => {
-      console.log('🗣️ JARVIS response:', response.substring(0, 50))
-      setStatus(`🤖 JARVIS: "${response}"`)
+    onTurnFinished: async (data) => {
+      console.log('🎤 Turn finished - processing locally', data)
       
-      // Auto-reset to listening after response
-      setTimeout(() => {
-        setStatus('🎤 JARVIS is listening... Speak naturally')
-      }, 4000)
+      // Check if we have transcript data in the turn finished event
+      if (data?.transcript) {
+        console.log('📝 Voice input from turn finished:', data.transcript.substring(0, 50))
+        setStatus(`You said: "${data.transcript}"`)
+        
+        // Process the command locally and speak the response
+        const response = await processVoiceCommand(data.transcript)
+        
+        if (response) {
+          console.log('🗣️ JARVIS response:', response.substring(0, 50))
+          speakResponse(response)
+          setStatus(`🤖 JARVIS: "${response.substring(0, 50)}..."`)
+          
+          // Auto-reset to listening after response
+          setTimeout(() => {
+            setStatus('🎤 JARVIS is listening... Speak naturally')
+          }, 4000)
+        } else {
+          console.log('❌ No response available')
+        }
+      }
     }
   })
+
+  // Extract values from SDK result
+  const { 
+    status: layercodeStatus,
+    userAudioAmplitude = 0,
+    agentAudioAmplitude = 0,
+    triggerUserTurnStarted,
+    triggerUserTurnFinished 
+  } = sdkResult
 
   return (
     <>

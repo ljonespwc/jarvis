@@ -25,3 +25,7 @@ contextBridge.exposeInMainWorld('jarvisAPI', {
     return () => ipcRenderer.removeAllListeners('voice-response');
   }
 });
+
+contextBridge.exposeInMainWorld('electronAPI', {
+  setSessionId: (sessionId) => ipcRenderer.send('set-session-id', sessionId)
+});

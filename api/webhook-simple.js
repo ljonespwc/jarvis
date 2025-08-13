@@ -46,142 +46,80 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { text, type, turn_id } = req.body || {};
+    const { text, type, turn_id, session_id } = req.body || {};
+    
+    // Extract session ID for bridge communication
+    const sessionId = session_id || turn_id || 'default-session';
     
     // Only log meaningful webhook calls, not internal Layercode messages
     if (type === 'session.start' || type === 'message' || text) {
-      console.log('🎤 Voice command:', { text: text?.substring(0, 50), type });
+      console.log('🎤 Voice command:', { text: text?.substring(0, 50), type, sessionId });
     }
 
     if (type === 'session.start') {
-      const response = 'What can I help you with?';
-      res.write(`data: ${JSON.stringify({ type: 'response.tts', content: response })}\n\n`);
-      res.write(`data: ${JSON.stringify({ type: 'response.end' })}\n\n`);
+      const response = "Hello! I'm JARVIS, your voice todo assistant. What can I help you with?";
+      res.write(`data: ${JSON.stringify({ type: 'response.tts', content: response, turn_id })}\n\n`);
+      res.write(`data: ${JSON.stringify({ type: 'response.end', turn_id })}\n\n`);
       res.end();
       return;
     }
 
     if (!text || text.trim() === '') {
       const response = 'I didn\'t catch that. Could you please repeat?';
-      res.write(`data: ${JSON.stringify({ type: 'response.tts', content: response })}\n\n`);
-      res.write(`data: ${JSON.stringify({ type: 'response.end' })}\n\n`);
+      res.write(`data: ${JSON.stringify({ type: 'response.tts', content: response, turn_id })}\n\n`);
+      res.write(`data: ${JSON.stringify({ type: 'response.end', turn_id })}\n\n`);
       res.end();
       return;
     }
 
-    // Local server communication functions
-    async function callLocalServer(action, data = {}) {
+    // Bridge communication - send command to user's local app
+    async function sendCommandToBridge(sessionId, text) {
       try {
-        const response = await fetch('http://localhost:47821/todo', {
+        console.log('🌉 Sending command to bridge for session:', sessionId);
+        
+        const response = await fetch(`https://jarvis-vert-eta.vercel.app/api/websocket?sessionId=${sessionId}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action, data })
+          body: JSON.stringify({
+            type: 'command',
+            command: 'process_voice',
+            data: { text }
+          })
         });
+        
+        if (!response.ok) {
+          throw new Error(`Bridge error: ${response.status}`);
+        }
         
         const result = await response.json();
         
         if (result.success) {
+          console.log('✅ Received response from local app via bridge');
           return result.data;
         } else {
-          throw new Error(result.error || 'Local server error');
+          throw new Error(result.error || 'Bridge communication error');
         }
+        
       } catch (error) {
-        console.error('❌ Failed to call local server:', error);
+        console.error('❌ Failed to communicate via bridge:', error);
         throw error;
       }
     }
 
-    async function readTasks() {
-      return await callLocalServer('read_tasks');
-    }
-
-    async function getPriorityTasks(count = 3) {
-      return await callLocalServer('get_priority_tasks', { count });
-    }
-
-    async function addTask(taskText) {
-      return await callLocalServer('add_task', { text: taskText });
-    }
-
-    async function markTaskDone(taskQuery) {
-      return await callLocalServer('mark_done', { query: taskQuery });
-    }
-
-    async function getStats() {
-      return await callLocalServer('get_stats');
-    }
-
-    // Process commands with ACTUAL file operations
-    const lowerText = text.toLowerCase();
+    // Process command via bridge to local app
     let responseText = '';
 
     try {
-      if (lowerText.includes('what needs') || lowerText.includes('attention')) {
-        const priorityTasks = await getPriorityTasks(3);
-        const stats = await getStats();
-        
-        if (priorityTasks.length === 0) {
-          responseText = "Great! You have no active tasks. Time to relax!";
-        } else {
-          responseText = `You have ${stats.activeCount} active tasks. Your priorities are: ${priorityTasks.join(', ')}`;
-        }
-        
-      } else if (lowerText.includes('add ')) {
-        const taskMatch = text.match(/add (.+)/i);
-        if (taskMatch) {
-          const newTask = taskMatch[1].trim();
-          const result = await addTask(newTask);
-          responseText = result.message;
-        } else {
-          responseText = "What would you like me to add to your todo list?";
-        }
-        
-      } else if (lowerText.includes('mark') && (lowerText.includes('done') || lowerText.includes('complete'))) {
-        const taskMatch = text.match(/mark (.+?) (?:done|complete)/i) || text.match(/(?:mark|complete) (.+)/i);
-        if (taskMatch) {
-          const taskQuery = taskMatch[1].trim();
-          const result = await markTaskDone(taskQuery);
-          responseText = result.success ? result.message : result.message;
-        } else {
-          responseText = "Which task would you like me to mark as complete?";
-        }
-        
-      } else if (lowerText.includes('read') && (lowerText.includes('list') || lowerText.includes('tasks'))) {
-        const tasks = await readTasks();
-        if (tasks.length === 0) {
-          responseText = "Your todo list is empty. Well done!";
-        } else {
-          responseText = `You have ${tasks.length} tasks: ${tasks.join(', ')}`;
-        }
-        
-      } else {
-        // AI fallback with real tasks
-        const tasks = await readTasks();
-        const completion = await openai.chat.completions.create({
-          model: "gpt-4o-mini",
-          messages: [
-            {
-              role: "system",
-              content: `You are JARVIS, a voice todo assistant. Current tasks: ${tasks.join(', ') || 'None'}. Respond helpfully and briefly.`
-            },
-            {
-              role: "user",
-              content: text
-            }
-          ],
-          temperature: 0.7,
-          max_tokens: 100
-        });
-        responseText = completion.choices[0]?.message?.content || "I didn't understand that. Try asking 'What needs my attention?'";
-      }
+      console.log('🌉 Processing voice command via bridge...');
+      responseText = await sendCommandToBridge(sessionId, text);
       
     } catch (error) {
-      console.error('❌ Error processing command:', error);
+      console.error('❌ Error processing command via bridge:', error);
       
-      if (error.message.includes('ECONNREFUSED') || error.message.includes('Failed to fetch')) {
+      if (error.message.includes('Bridge error') || error.message.includes('timeout')) {
         responseText = "Please make sure JARVIS is running on your computer to access your todo file.";
       } else {
-        responseText = "Sorry, I had trouble accessing your todo file. Please try again.";
+        responseText = "Sorry, I had trouble processing your request. Please try again.";
       }
     }
 
