@@ -21,11 +21,39 @@ let todos = {
 };
 
 export default async function handler(req, res) {
-  // Set SSE headers
+  // Handle OPTIONS request for CORS
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, layercode-signature');
+    return res.status(200).end();
+  }
+
+  // Set SSE headers with comprehensive CORS
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
   res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, layercode-signature');
+
+  // Optional webhook signature verification
+  const signature = req.headers['layercode-signature'];
+  const webhookSecret = process.env.LAYERCODE_WEBHOOK_SECRET;
+  
+  if (signature && webhookSecret) {
+    const crypto = require('crypto');
+    const expectedSignature = crypto
+      .createHmac('sha256', webhookSecret)
+      .update(JSON.stringify(req.body))
+      .digest('hex');
+    
+    if (`sha256=${expectedSignature}` !== signature) {
+      console.log('⚠️ Webhook signature mismatch - continuing anyway for development');
+    } else {
+      console.log('✅ Webhook signature verified');
+    }
+  }
 
   try {
     const { text, type } = req.body || {};
