@@ -1,28 +1,15 @@
 // Vercel serverless function for Layercode webhook
 const { OpenAI } = require('openai');
 
-// Dynamic import for Layercode SDK (ES module) 
-let streamResponse = null;
-async function getLayercodeStreamResponse() {
-  if (!streamResponse) {
-    try {
-      const sdk = await import('@layercode/node-server-sdk');
-      console.log('SDK imported, available exports:', Object.keys(sdk));
-      
-      // Try different ways to get streamResponse
-      streamResponse = sdk.streamResponse || sdk.default?.streamResponse;
-                      
-      if (!streamResponse) {
-        throw new Error('streamResponse not found in any expected location');
-      }
-      console.log('✅ streamResponse function found');
-      
-    } catch (error) {
-      console.error('❌ SDK import error:', error);
-      throw error;
-    }
-  }
-  return streamResponse;
+// Layercode webhook signature verification
+function verifyWebhookSignature(payload, signature, secret) {
+  const crypto = require('crypto');
+  const expectedSignature = crypto
+    .createHmac('sha256', secret)
+    .update(payload)
+    .digest('hex');
+  
+  return `sha256=${expectedSignature}` === signature;
 }
 
 // Initialize OpenAI client
@@ -192,121 +179,14 @@ function generateDefaultResponse(actionName) {
   return responses[actionName] || "Task processed successfully.";
 }
 
-// Verify webhook signature from Layercode
-function verifyWebhookSignature(payload, signature, secret) {
-  const crypto = require('crypto');
-  const expectedSignature = crypto
-    .createHmac('sha256', secret)
-    .update(payload)
-    .digest('hex');
-  
-  return `sha256=${expectedSignature}` === signature;
-}
-
 export default async function handler(req, res) {
-  try {
-    // Try to get Layercode SDK streamResponse
-    const layercodeStreamResponse = await getLayercodeStreamResponse();
-    
-    console.log('🚀 Using Layercode SDK streamResponse');
-    
-    // Use Layercode's streamResponse - CORRECT USAGE
-    return layercodeStreamResponse(req.body, async ({ stream }) => {
-      console.log('🔧 Stream context received, using SDK stream');
-      await handleVoiceCommand(req.body, stream);
-    });
-    
-  } catch (error) {
-    console.error('❌ Webhook error:', error);
-    console.error('🔄 SDK import failed, falling back to manual SSE');
-    
-    // Fallback to manual SSE implementation (this is working!)
-    return handleSSEManually(req, res);
-  }
+  // Use manual SSE implementation - this works reliably
+  return handleSSEResponse(req, res);
 }
 
-async function handleVoiceCommand(payload, stream) {
-  try {
-    console.log('📨 Webhook received:', payload);
-    
-    const { text, connection_id, session_id, type, turn_id } = payload;
-    
-    if (type === 'session.start') {
-      stream.tts('Hello! I\'m JARVIS v1.0, your voice todo assistant. What can I help you with?');
-      stream.end();
-      return;
-    }
 
-    if (!text || text.trim() === '') {
-      stream.tts('I didn\'t catch that. Could you please repeat?');
-      stream.end();
-      return;
-    }
-
-    console.log(`🎤 Processing voice command: "${text}"`);
-
-    // Process command with AI
-    const aiResult = await processCommand(text, todos);
-    console.log('🤖 AI Result:', aiResult);
-
-    let responseText = '';
-
-    // Execute the identified action
-    if (aiResult.action === 'read_tasks') {
-      const limit = aiResult.parameters?.limit || 5;
-      const tasks = todos.active.slice(0, limit);
-      
-      if (tasks.length === 0) {
-        responseText = 'You have no active tasks right now. Great job!';
-      } else {
-        responseText = `You have ${tasks.length} priority tasks: ${tasks.join(', ')}`;
-      }
-
-    } else if (aiResult.action === 'add_task') {
-      const taskText = aiResult.parameters?.task;
-      if (taskText) {
-        todos.active.push(taskText);
-        responseText = `Added "${taskText}" to your todo list.`;
-      } else {
-        responseText = 'I couldn\'t understand what task to add. Please try again.';
-      }
-
-    } else if (aiResult.action === 'mark_done') {
-      const taskMatch = aiResult.parameters?.task_match;
-      if (taskMatch) {
-        const taskIndex = todos.active.findIndex(task => 
-          task.toLowerCase().includes(taskMatch.toLowerCase())
-        );
-        
-        if (taskIndex !== -1) {
-          const completedTask = todos.active.splice(taskIndex, 1)[0];
-          todos.completed.push(completedTask);
-          responseText = `Great! I've marked "${completedTask}" as completed.`;
-        } else {
-          responseText = `I couldn't find a task matching "${taskMatch}". Can you be more specific?`;
-        }
-      } else {
-        responseText = 'I couldn\'t understand which task to mark as done. Please try again.';
-      }
-
-    } else {
-      responseText = aiResult.response || 'I didn\'t understand that command. Try asking "What needs my attention?" or "Add [task name]".';
-    }
-
-    // Send TTS response using Layercode SDK
-    console.log(`🗣️ Speaking: ${responseText}`);
-    stream.tts(responseText);
-    stream.end();
-
-  } catch (error) {
-    console.error('❌ Error handling voice command:', error);
-    stream.tts('Sorry, I encountered an error processing that request.');
-    stream.end();
-  }
-}
-
-// Manual SSE fallback implementation
-async function handleSSEManually(req, res) {
+// SSE implementation for Layercode TTS responses
+async function handleSSEResponse(req, res) {
   // Set SSE headers
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
