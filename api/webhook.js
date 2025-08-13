@@ -220,14 +220,18 @@ export default async function handler(req, res) {
     
     if (type === 'session.start') {
       return res.json({ 
-        message: 'Hello! I\'m JARVIS v1.0, your voice todo assistant. What can I help you with?',
-        version: '1.0.0'
+        type: "response.tts",
+        content: 'Hello! I\'m JARVIS v1.0, your voice todo assistant. What can I help you with?',
+        turn_id: turn_id,
+        metadata: { version: '1.0.0' }
       });
     }
 
     if (!text || text.trim() === '') {
       return res.json({ 
-        message: 'I didn\'t catch that. Could you please repeat?' 
+        type: "response.tts",
+        content: 'I didn\'t catch that. Could you please repeat?',
+        turn_id: turn_id
       });
     }
 
@@ -284,12 +288,17 @@ export default async function handler(req, res) {
     // Send response
     console.log(`🗣️ Response: ${responseText}`);
     
+    // Send TTS response in Layercode format
     res.json({
-      message: responseText,
-      type: 'todos_updated',
-      todos: todos,
-      action: aiResult.action,
-      timestamp: new Date().toISOString()
+      type: "response.tts",
+      content: responseText,
+      turn_id: turn_id,
+      // Additional metadata (optional)
+      metadata: {
+        todos: todos,
+        action: aiResult.action,
+        timestamp: new Date().toISOString()
+      }
     });
 
   } catch (error) {
