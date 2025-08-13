@@ -1,8 +1,8 @@
-// JARVIS Layercode authorization endpoint - using proven pattern
-export default async function handler(req) {
+// JARVIS Layercode authorization endpoint - Vercel serverless function format
+export default async function handler(req, res) {
   try {
-    // Parse request body if needed
-    const body = await req.json().catch(() => ({}));
+    // Parse request body - Vercel serverless function format
+    const body = req.body || {};
     
     // Extract pipeline ID from body or use default
     const pipelineId = body.pipeline_id || process.env.LAYERCODE_PIPELINE_ID || 'l7l2bv2c';
@@ -39,14 +39,14 @@ export default async function handler(req) {
     console.log('✅ Session authorized successfully');
     
     // Return exactly what LayerCode API returns for SDK compatibility
-    return Response.json(layercodeData);
+    return res.status(200).json(layercodeData);
 
   } catch (error) {
     console.error('❌ Authorization failed:', error);
-    return Response.json({
+    return res.status(500).json({
       error: 'Voice authorization failed',
       message: error instanceof Error ? error.message : 'Unknown error',
       authorized: false
-    }, { status: 500 });
+    });
   }
 }

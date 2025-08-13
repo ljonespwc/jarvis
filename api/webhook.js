@@ -169,9 +169,9 @@ function generateDefaultResponse(actionName) {
   return responses[actionName] || "Task processed successfully.";
 }
 
-export default async function handler(req) {
-  // Get request body first
-  const requestBody = await req.json();
+export default async function handler(req, res) {
+  // Get request body - Vercel serverless function format
+  const requestBody = req.body;
   
   // Use actual Layercode SDK streamResponse - proven working pattern
   return streamResponse(requestBody, async ({ stream }) => {

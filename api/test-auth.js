@@ -1,6 +1,6 @@
-// Simple test auth endpoint
-export default async function handler(req) {
-  return Response.json({
+// Simple test auth endpoint - Vercel serverless function format
+export default async function handler(req, res) {
+  return res.status(200).json({
     success: true,
     message: "Auth endpoint is working",
     timestamp: Date.now(),
