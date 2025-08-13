@@ -87,8 +87,9 @@ app.whenReady().then(async () => {
   const originalStderrWrite = process.stderr.write;
   process.stderr.write = function(string, encoding, fd) {
     if (typeof string === 'string') {
-      // Suppress Chrome DevTools protocol spam
+      // Suppress Chrome DevTools protocol spam with timestamp format
       if (string.includes('ERROR:CONSOLE(1)') ||
+          string.includes(':ERROR:CONSOLE(1)') ||
           string.includes('Request Network.enable failed') ||
           string.includes('Request Network.setAttachDebugStack failed') ||
           string.includes('Request Emulation.setEmulatedMedia failed') ||
