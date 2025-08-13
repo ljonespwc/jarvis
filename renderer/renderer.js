@@ -141,8 +141,7 @@ class JarvisUI {
                         clientProps.agentAmplitude || 
                         clientProps.speakerAmplitude || 0;
         
-        if (userAmp > 0 || agentAmp > 0) {
-          console.log('📊 Found amplitude data via polling:', { user: userAmp, agent: agentAmp });
+        if (userAmp > 0.001 || agentAmp > 0.001) {
           this.updateLiveSpeechIndicators(userAmp, agentAmp);
         }
       }
@@ -195,13 +194,11 @@ class JarvisUI {
       }
     }
     
-    // Debug logging with better formatting
-    if (userAmplitude > 0.001 || agentAmplitude > 0.001) {
+    // Reduced debug logging - only significant changes
+    if ((userAmplitude > 0.01 || agentAmplitude > 0.01) && Math.random() < 0.1) {
       console.log('🎤 Live audio:', { 
-        user: userAmplitude?.toFixed(4), 
-        agent: agentAmplitude?.toFixed(4),
-        userHeight: Math.max(4, userAmplitude * 200).toFixed(1) + 'px',
-        agentHeight: Math.max(4, agentAmplitude * 200).toFixed(1) + 'px'
+        user: userAmplitude?.toFixed(3), 
+        agent: agentAmplitude?.toFixed(3)
       });
     }
   }
