@@ -36,13 +36,14 @@ Voice Input → Layercode SDK → GPT-4o-mini → File Operations → TTS Respon
 - [x] **Next.js + React Architecture**: Migrated from vanilla JS to modern React components
 - [x] **Layercode React SDK Integration**: Using `useLayercodePipeline` hook for better state management
 - [x] **Clean Console Output**: Suppressed Chrome DevTools protocol spam completely
-- [x] **Electron + Next.js Hybrid**: Desktop app serving static Next.js build
+- [x] **Electron + Next.js Hybrid**: Desktop app serving static Next.js build from `out/index.html`
 - [x] **Voice Pipeline Working**: End-to-end voice flow with Layercode → OpenAI → TTS
 - [x] **Amplitude Visualization**: Real-time audio feedback bars working properly
 - [x] **Build Process Optimized**: Proper .gitignore, build artifacts excluded from source control
 - [x] **Development Workflow**: Clean `npm run dev` command for rapid testing
+- [x] **Dead Code Cleanup**: Removed orphaned vanilla JS renderer file
 
-**Current Status**: ✅ **VOICE INTERACTION WORKING** - React-based frontend with full voice conversation capability
+**Current Status**: ✅ **VOICE INTERACTION WORKING** - React-based frontend with full voice conversation capability using proper React SDK
 
 ### 🔄 IN PROGRESS - Missing Core Functionality
 - [ ] **NO TODO.TXT FILE INTEGRATION** - Currently using in-memory mock data only
@@ -68,19 +69,20 @@ Voice Input → Layercode SDK → GPT-4o-mini → File Operations → TTS Respon
 ## Implementation Log
 
 **Final Working Architecture** (Aug 13, 2025):
-- **Frontend**: Electron app with Layercode JS SDK (vanilla JS, not React)
+- **Frontend**: Electron app with Next.js + React using `@layercode/react-sdk`
 - **Backend**: Vercel serverless functions with SSE implementation
-- **Voice Flow**: Voice → Layercode SDK → Vercel webhook → OpenAI GPT-4o-mini → SSE Response → TTS
+- **Voice Flow**: Voice → Layercode React SDK → Vercel webhook → OpenAI GPT-4o-mini → SSE Response → TTS
 - **Pipeline ID**: `l7l2bv2c`
 - **Webhook**: `https://jarvis-vert-eta.vercel.app/api/webhook-simple`
 - **Authorization**: `https://jarvis-vert-eta.vercel.app/api/authorize`
 
 **Key Technical Solutions That Worked**:
-- ✅ **Layercode Vanilla JS SDK** - Frontend uses CDN import with `authorizeSessionEndpoint` pattern
+- ✅ **Layercode React SDK** - Frontend uses `useLayercodePipeline` hook with proper state management
 - ✅ **Vercel serverless functions** - Proper Node.js `req/res` format, not Web API
 - ✅ **Manual SSE implementation** - Custom SSE formatting compatible with Layercode expectations
 - ✅ **Pipeline-based authorization** - Let Layercode SDK handle auth flow automatically
 - ✅ **In-memory todo storage** - Simple but functional for demo purposes
+- ✅ **Next.js static export** - Electron loads from `out/index.html` build output
 
 **SSE Response Format** (working):
 ```
@@ -106,10 +108,13 @@ data: {"type":"response.end","turn_id":"id"}
 
 **Final Working File Structure**:
 ```
-/api/webhook-simple.js  - Working SSE webhook handler
-/api/authorize.js       - Layercode session authorization
-/main.js               - Electron main process
-/renderer/renderer.js  - Frontend with Layercode JS SDK
+/api/webhook-simple.js              - Working SSE webhook handler
+/api/authorize.js                   - Layercode session authorization
+/main.js                           - Electron main process
+/pages/index.js                    - Next.js home page
+/components/VoiceInterface.js      - Dynamic import wrapper
+/components/VoiceInterfaceClient.js - React component with useLayercodePipeline
+/out/index.html                    - Built Next.js static export (served by Electron)
 ```
 
 ## 🎯 NEXT DEVELOPMENT PHASE - TODO.TXT FILE INTEGRATION
