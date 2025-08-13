@@ -191,7 +191,8 @@ export default async function handler(req, res) {
     
     if (type === 'session.start') {
       return res.json({ 
-        message: 'Hello! I\'m JARVIS, your voice todo assistant. What can I help you with?' 
+        message: 'Hello! I\'m JARVIS v1.0, your voice todo assistant. What can I help you with?',
+        version: '1.0.0'
       });
     }
 
