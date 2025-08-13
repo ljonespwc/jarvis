@@ -79,31 +79,28 @@ class JarvisApp {
 
 const jarvisApp = new JarvisApp();
 
-app.whenReady().then(async () => {
-  // Just disable security warnings and camera warnings
-  process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
-  
-  // Comprehensive stderr suppression for cleaner terminal output
-  const originalStderrWrite = process.stderr.write;
-  process.stderr.write = function(string, encoding, fd) {
-    if (typeof string === 'string') {
-      // Suppress Chrome DevTools protocol spam with timestamp format
-      if (string.includes('ERROR:CONSOLE(1)') ||
-          string.includes(':ERROR:CONSOLE(1)') ||
-          string.includes('Request Network.enable failed') ||
-          string.includes('Request Network.setAttachDebugStack failed') ||
-          string.includes('Request Emulation.setEmulatedMedia failed') ||
-          string.includes('Request Emulation.setEmulatedVisionDeficiency failed') ||
-          string.includes('Request Network.clearAcceptedEncodingsOverride failed') ||
-          string.includes('devtools://devtools/bundled/core/protocol_client') ||
-          string.includes('protocol_client.js') ||
-          // Suppress camera deprecation warnings
-          string.includes('AVCaptureDeviceTypeExternal is deprecated for Continuity Cameras')) {
-        return true; // Suppress these messages
-      }
+// Suppress ALL Electron stderr noise before app starts
+process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
+
+// More aggressive stderr suppression
+const originalStderrWrite = process.stderr.write;
+process.stderr.write = function(string, encoding, fd) {
+  if (typeof string === 'string') {
+    // Suppress ALL Chrome DevTools/Electron noise
+    if (string.match(/\[\d+:\d+\/\d+\.\d+:ERROR:(CONSOLE\(1\)|trust_store_mac\.cc)/) ||
+        string.includes('Request Network.') ||
+        string.includes('Request Emulation.') ||
+        string.includes('devtools://') ||
+        string.includes('protocol_client') ||
+        string.includes('Failed parsing extensions') ||
+        string.includes('AVCaptureDeviceTypeExternal is deprecated')) {
+      return true; // Suppress completely
     }
-    return originalStderrWrite.call(this, string, encoding, fd);
-  };
+  }
+  return originalStderrWrite.call(this, string, encoding, fd);
+};
+
+app.whenReady().then(async () => {
 
   await jarvisApp.initialize();
   jarvisApp.setupIPC();
