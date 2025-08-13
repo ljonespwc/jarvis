@@ -35,8 +35,8 @@ class JarvisApp {
     // Load Next.js static export
     this.mainWindow.loadFile('out/index.html');
 
-    // Don't open DevTools - causes voice interruptions
-    // this.mainWindow.webContents.openDevTools({ mode: 'detach' });
+    // Enable DevTools for debugging - should be stable with React SDK
+    this.mainWindow.webContents.openDevTools({ mode: 'detach' });
 
     this.mainWindow.on('closed', () => {
       this.mainWindow = null;
