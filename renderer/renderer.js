@@ -47,11 +47,23 @@ class JarvisUI {
         // Add debug logging to see all available events
         onAny: (eventName, data) => {
           console.log('🎧 Layercode event:', eventName, data);
+          
+          // Check for any amplitude-related data in events
+          if (data && (data.userAudioAmplitude !== undefined || data.agentAudioAmplitude !== undefined)) {
+            console.log('🎤 Found amplitude data!', data);
+            this.updateVisualFeedback(data);
+          }
         },
         onConnect: ({ sessionId }) => {
           console.log('✅ Connected to Layercode:', sessionId);
           this.currentSessionId = sessionId;
           this.updateStatus('🎤 JARVIS is listening... Speak naturally');
+          
+          // Debug: Check what's available on the client for amplitude data
+          console.log('🔍 Layercode client methods:', Object.getOwnPropertyNames(this.layercodeClient));
+          
+          // Start polling for amplitude data if it exists
+          this.startAmplitudePolling();
         },
         onDisconnect: () => {
           console.log('🔌 Disconnected from Layercode');
@@ -66,15 +78,6 @@ class JarvisUI {
         onTranscript: (transcript) => {
           console.log('📝 Voice input:', transcript.substring(0, 50));
           this.updateStatus(`You said: "${transcript}"`);
-        },
-        onResponse: (response) => {
-          console.log('🗣️ JARVIS response:', response.substring(0, 50));
-          this.updateStatus(`🤖 JARVIS: "${response}"`);
-          
-          // Auto-reset to listening after response
-          setTimeout(() => {
-            this.updateStatus('🎤 JARVIS is listening... Speak naturally');
-          }, 4000);
         },
         // Try different event names for audio data
         onAudioLevel: (data) => {
@@ -92,10 +95,29 @@ class JarvisUI {
         onTurnStarted: () => {
           console.log('🎤 Turn started - user speaking');
           this.updateStatus('🎤 Listening to you...');
+          
+          // Simulate user speaking with fake amplitude to test UI
+          this.simulateUserSpeaking();
         },
         onTurnFinished: () => {
           console.log('⏳ Processing...');
           this.updateStatus('⏳ JARVIS is thinking...');
+          
+          // Stop simulating user speaking
+          this.stopSimulation();
+        },
+        onResponse: (response) => {
+          console.log('🗣️ JARVIS response:', response.substring(0, 50));
+          this.updateStatus(`🤖 JARVIS: "${response}"`);
+          
+          // Simulate agent speaking
+          this.simulateAgentSpeaking();
+          
+          // Auto-reset to listening after response
+          setTimeout(() => {
+            this.updateStatus('🎤 JARVIS is listening... Speak naturally');
+            this.stopSimulation();
+          }, 4000);
         }
       });
 
@@ -112,6 +134,64 @@ class JarvisUI {
   setupVisualFeedback() {
     // Visual feedback for automatic voice detection - no buttons needed
     console.log('🎨 Setting up visual feedback for automatic voice interaction');
+  }
+
+  startAmplitudePolling() {
+    // Try to access amplitude data from client properties
+    setInterval(() => {
+      if (this.layercodeClient) {
+        const clientProps = this.layercodeClient;
+        
+        // Check for common amplitude properties
+        const userAmp = clientProps.userAudioAmplitude || 
+                       clientProps.userAmplitude || 
+                       clientProps.micAmplitude || 0;
+        
+        const agentAmp = clientProps.agentAudioAmplitude || 
+                        clientProps.agentAmplitude || 
+                        clientProps.speakerAmplitude || 0;
+        
+        if (userAmp > 0 || agentAmp > 0) {
+          console.log('📊 Found amplitude data via polling:', { user: userAmp, agent: agentAmp });
+          this.updateLiveSpeechIndicators(userAmp, agentAmp);
+        }
+      }
+    }, 100); // Poll at 10fps
+  }
+
+  simulateUserSpeaking() {
+    // Test the UI with fake user amplitude data
+    console.log('🧪 Testing UI with fake user amplitude');
+    let amplitude = 0.5;
+    this.userSimulation = setInterval(() => {
+      // Random amplitude between 0.2 and 0.8
+      amplitude = 0.2 + Math.random() * 0.6;
+      this.updateLiveSpeechIndicators(amplitude, 0);
+    }, 100);
+  }
+
+  simulateAgentSpeaking() {
+    // Test the UI with fake agent amplitude data
+    console.log('🧪 Testing UI with fake agent amplitude');
+    let amplitude = 0.4;
+    this.agentSimulation = setInterval(() => {
+      // Random amplitude between 0.1 and 0.7
+      amplitude = 0.1 + Math.random() * 0.6;
+      this.updateLiveSpeechIndicators(0, amplitude);
+    }, 100);
+  }
+
+  stopSimulation() {
+    if (this.userSimulation) {
+      clearInterval(this.userSimulation);
+      this.userSimulation = null;
+    }
+    if (this.agentSimulation) {
+      clearInterval(this.agentSimulation);
+      this.agentSimulation = null;
+    }
+    // Reset to idle state
+    this.updateLiveSpeechIndicators(0, 0);
   }
   
   updateLiveSpeechIndicators(userAmplitude = 0, agentAmplitude = 0) {
