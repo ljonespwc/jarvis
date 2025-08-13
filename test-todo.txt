@@ -1,0 +1,11 @@
+# Welcome to JARVIS Voice Todo!
+# Say "Add [task]" to get started
+
+
+[DONE] 2025-08-12 Call dentist for appointment
+
+Buy groceries for dinner
+
+Review quarterly report
+
+Schedule team meeting

@@ -1,0 +1,15 @@
+{
+  "functions": {
+    "api/webhook.js": {
+      "maxDuration": 30
+    },
+    "api/authorize.js": {
+      "maxDuration": 10
+    }
+  },
+  "env": {
+    "OPENAI_API_KEY": "@openai_api_key",
+    "LAYERCODE_API_KEY": "@layercode_api_key",
+    "LAYERCODE_PIPELINE_ID": "@layercode_pipeline_id"
+  }
+}
