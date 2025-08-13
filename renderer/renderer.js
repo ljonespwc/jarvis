@@ -18,28 +18,12 @@ class JarvisUI {
     try {
       console.log('🎤 Initializing Layercode client...');
       
-      // Get authorization from our working API endpoint
-      const authResponse = await fetch('https://jarvis-vert-eta.vercel.app/api/authorize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({})
-      });
-      const authData = await authResponse.json();
-      
-      if (!authResponse.ok || authData.error) {
-        throw new Error(authData.message || 'Failed to authorize session');
-      }
-
-      console.log('🔧 Authorization received:', authData);
-      console.log('🔧 client_session_key:', authData.client_session_key);
-      console.log('🔧 session_id:', authData.session_id);
-
-      if (!authData.client_session_key) {
-        throw new Error('No client_session_key in authorization response');
-      }
-
       this.layercodeClient = new LayercodeClient({
-        clientSessionKey: authData.client_session_key,
+        pipelineId: 'l7l2bv2c',
+        authorizeSessionEndpoint: 'https://jarvis-vert-eta.vercel.app/api/authorize',
+        metadata: {
+          sessionId: 'jarvis-' + Date.now()
+        },
         onConnect: ({ sessionId }) => {
           console.log('✅ Connected to Layercode:', sessionId);
           this.currentSessionId = sessionId;
