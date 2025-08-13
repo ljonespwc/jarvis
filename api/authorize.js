@@ -17,22 +17,37 @@ export default async function handler(req, res) {
 
   try {
     console.log('🔐 Authorization request received:', req.body);
+    const { pipeline_id, metadata } = req.body;
     
-    // Generate session credentials
-    const timestamp = Date.now();
-    const randomId = Math.random().toString(36).substr(2, 9);
-    const sessionKey = `session_${timestamp}_${randomId}`;
-    const sessionId = `sess_${timestamp}_${randomId}`;
+    // Call real Layercode authorization API
+    const layercodeResponse = await fetch('https://api.layercode.com/v1/client_sessions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.LAYERCODE_API_KEY}`
+      },
+      body: JSON.stringify({
+        pipeline_id: pipeline_id || process.env.LAYERCODE_PIPELINE_ID,
+        metadata: metadata || {}
+      })
+    });
     
-    console.log('🔐 Returning auth data:', { sessionKey, sessionId });
+    if (!layercodeResponse.ok) {
+      const errorData = await layercodeResponse.text();
+      console.error('❌ Layercode auth failed:', layercodeResponse.status, errorData);
+      throw new Error(`Layercode authorization failed: ${layercodeResponse.status}`);
+    }
+    
+    const authData = await layercodeResponse.json();
+    console.log('🔐 Layercode auth success:', authData);
     
     res.json({
-      client_session_key: sessionKey,
-      session_id: sessionId
+      client_session_key: authData.client_session_key,
+      session_id: authData.session_id
     });
     
   } catch (error) {
     console.error('❌ Authorization error:', error);
-    res.status(500).json({ error: 'Authorization failed' });
+    res.status(500).json({ error: 'Authorization failed: ' + error.message });
   }
 }
