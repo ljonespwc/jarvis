@@ -63,7 +63,7 @@ class JarvisUI {
   
   async initializeLayercode() {
     try {
-      console.log('🎤 Initializing Layercode client...');
+      console.log('🎤 Initializing Layercode client (minimal config)...');
       
       this.layercodeClient = new LayercodeClient({
         pipelineId: 'l7l2bv2c',

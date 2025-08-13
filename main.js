@@ -79,7 +79,7 @@ class JarvisApp {
 const jarvisApp = new JarvisApp();
 
 app.whenReady().then(async () => {
-  // Suppress Electron warnings and devtools protocol messages
+  // Suppress Electron warnings and devtools protocol messages - clean console
   process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
   const originalConsoleLog = console.log;
   const originalConsoleWarn = console.warn;
