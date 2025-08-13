@@ -1,1 +1,0 @@
-self.__REACT_LOADABLE_MANIFEST='{"components/VoiceInterface.js -> ./VoiceInterfaceClient":{"id":1156,"files":["static/chunks/21d85dca.dc6fcbafad4f2f05.js","static/chunks/156.6bb4853badd2b3f3.js"]}}';
