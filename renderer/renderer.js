@@ -95,28 +95,18 @@ class JarvisUI {
         onTurnStarted: () => {
           console.log('🎤 Turn started - user speaking');
           this.updateStatus('🎤 Listening to you...');
-          
-          // Simulate user speaking with fake amplitude to test UI
-          this.simulateUserSpeaking();
         },
         onTurnFinished: () => {
           console.log('⏳ Processing...');
           this.updateStatus('⏳ JARVIS is thinking...');
-          
-          // Stop simulating user speaking
-          this.stopSimulation();
         },
         onResponse: (response) => {
           console.log('🗣️ JARVIS response:', response.substring(0, 50));
           this.updateStatus(`🤖 JARVIS: "${response}"`);
           
-          // Simulate agent speaking
-          this.simulateAgentSpeaking();
-          
           // Auto-reset to listening after response
           setTimeout(() => {
             this.updateStatus('🎤 JARVIS is listening... Speak naturally');
-            this.stopSimulation();
           }, 4000);
         }
       });
@@ -159,54 +149,21 @@ class JarvisUI {
     }, 100); // Poll at 10fps
   }
 
-  simulateUserSpeaking() {
-    // Test the UI with fake user amplitude data
-    console.log('🧪 Testing UI with fake user amplitude');
-    let amplitude = 0.5;
-    this.userSimulation = setInterval(() => {
-      // Random amplitude between 0.2 and 0.8
-      amplitude = 0.2 + Math.random() * 0.6;
-      this.updateLiveSpeechIndicators(amplitude, 0);
-    }, 100);
-  }
-
-  simulateAgentSpeaking() {
-    // Test the UI with fake agent amplitude data
-    console.log('🧪 Testing UI with fake agent amplitude');
-    let amplitude = 0.4;
-    this.agentSimulation = setInterval(() => {
-      // Random amplitude between 0.1 and 0.7
-      amplitude = 0.1 + Math.random() * 0.6;
-      this.updateLiveSpeechIndicators(0, amplitude);
-    }, 100);
-  }
-
-  stopSimulation() {
-    if (this.userSimulation) {
-      clearInterval(this.userSimulation);
-      this.userSimulation = null;
-    }
-    if (this.agentSimulation) {
-      clearInterval(this.agentSimulation);
-      this.agentSimulation = null;
-    }
-    // Reset to idle state
-    this.updateLiveSpeechIndicators(0, 0);
-  }
   
   updateLiveSpeechIndicators(userAmplitude = 0, agentAmplitude = 0) {
-    // Update user speech indicator - like lickedin
+    // Update user speech indicator - like lickedin but with proper scaling for small Layercode values
     const userIndicator = document.getElementById('userIndicator');
     const userBars = userIndicator?.querySelectorAll('.bar');
     const userStatus = userIndicator?.querySelector('.speaking-status');
     
     if (userBars) {
-      const isUserSpeaking = userAmplitude > 0.01;
+      // Lower threshold for small Layercode amplitude values
+      const isUserSpeaking = userAmplitude > 0.001;
       userIndicator.classList.toggle('user-speaking', isUserSpeaking);
       
       userBars.forEach((bar, i) => {
-        // Scale bars based on actual amplitude like lickedin: Math.max(8, amplitude * 15)
-        const height = Math.max(4, userAmplitude * 30);
+        // Scale up small Layercode amplitude values (0.002-0.3) to visible heights (4-60px)
+        const height = Math.max(4, userAmplitude * 200);
         bar.style.height = `${height}px`;
         bar.style.animationDelay = `${i * 0.1}s`;
       });
@@ -222,11 +179,13 @@ class JarvisUI {
     const agentStatus = agentIndicator?.querySelector('.speaking-status');
     
     if (agentBars) {
-      const isAgentSpeaking = agentAmplitude > 0.01;
+      // Lower threshold for small Layercode amplitude values
+      const isAgentSpeaking = agentAmplitude > 0.001;
       agentIndicator.classList.toggle('speaking', isAgentSpeaking);
       
       agentBars.forEach((bar, i) => {
-        const height = Math.max(4, agentAmplitude * 30);
+        // Scale up small Layercode amplitude values to visible heights
+        const height = Math.max(4, agentAmplitude * 200);
         bar.style.height = `${height}px`;
         bar.style.animationDelay = `${i * 0.1}s`;
       });
@@ -236,11 +195,13 @@ class JarvisUI {
       }
     }
     
-    // Debug logging
-    if (userAmplitude > 0 || agentAmplitude > 0) {
+    // Debug logging with better formatting
+    if (userAmplitude > 0.001 || agentAmplitude > 0.001) {
       console.log('🎤 Live audio:', { 
-        user: userAmplitude?.toFixed(3), 
-        agent: agentAmplitude?.toFixed(3) 
+        user: userAmplitude?.toFixed(4), 
+        agent: agentAmplitude?.toFixed(4),
+        userHeight: Math.max(4, userAmplitude * 200).toFixed(1) + 'px',
+        agentHeight: Math.max(4, agentAmplitude * 200).toFixed(1) + 'px'
       });
     }
   }
