@@ -210,11 +210,11 @@ export default async function handler(req, res) {
     
     console.log('🚀 Using Layercode SDK streamResponse');
     
-    // Use Layercode's streamResponse to handle SSE properly
-    return layercodeStreamResponse(req, async (context) => {
-      console.log('🔧 Stream context received:', Object.keys(context));
-      await handleVoiceCommand(req.body, context.stream || context);
-    })(req, res);
+    // Use Layercode's streamResponse - CORRECT USAGE
+    return layercodeStreamResponse(req.body, async ({ stream }) => {
+      console.log('🔧 Stream context received, using SDK stream');
+      await handleVoiceCommand(req.body, stream);
+    });
     
   } catch (error) {
     console.error('❌ Webhook error:', error);
