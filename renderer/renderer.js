@@ -28,7 +28,6 @@ class JarvisUI {
 
       this.layercodeClient = new LayercodeClient({
         pipelineId: voiceConfig.pipelineId,
-        authorizeSessionEndpoint: voiceConfig.authEndpoint,
         onConnect: ({ sessionId }) => {
           console.log('✅ Connected to Layercode:', sessionId);
           this.currentSessionId = sessionId;

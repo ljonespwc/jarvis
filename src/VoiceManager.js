@@ -68,8 +68,6 @@ class VoiceManager extends EventEmitter {
   getConnectionInfo() {
     return {
       pipelineId: this.pipelineId,
-      authEndpoint: 'https://jarvis-vert-eta.vercel.app/api/authorize',
-      webhookEndpoint: 'https://jarvis-vert-eta.vercel.app/api/webhook',
       isListening: this.isListening
     };
   }
