@@ -47,8 +47,9 @@ class JarvisUI {
         // Try to prevent interruptions during agent speech
         pushToTalkEnabled: false,
         interruptible: false,
-        vadSensitivity: 0.1, // Lower sensitivity to reduce false positives
-        speechEndTimeout: 1500, // Wait longer before ending speech
+        vadSensitivity: 0.05, // Even lower sensitivity to reduce false positives  
+        speechEndTimeout: 2000, // Wait longer before ending speech
+        speechStartThreshold: 0.15, // Higher threshold to start speech detection
         onConnect: ({ sessionId }) => {
           console.log('✅ Connected to Layercode:', sessionId);
           this.currentSessionId = sessionId;
