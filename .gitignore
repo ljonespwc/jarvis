@@ -15,6 +15,20 @@ dist/
 build/
 out/
 
+# Next.js build artifacts
+.next/
+*.next/
+.next*
+*/.next*
+*next/cache*
+*next/server*
+*next/static*
+*next/trace*
+BUILD_ID*
+build-manifest.json*
+react-loadable-manifest.json*
+*.pack*
+
 # Electron
 *.log
 *.pid

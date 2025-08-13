@@ -88,12 +88,14 @@ app.whenReady().then(async () => {
   process.stderr.write = function(string, encoding, fd) {
     if (typeof string === 'string') {
       // Suppress Chrome DevTools protocol spam
-      if (string.includes('Request Network.enable failed') ||
+      if (string.includes('ERROR:CONSOLE(1)') ||
+          string.includes('Request Network.enable failed') ||
           string.includes('Request Network.setAttachDebugStack failed') ||
           string.includes('Request Emulation.setEmulatedMedia failed') ||
           string.includes('Request Emulation.setEmulatedVisionDeficiency failed') ||
           string.includes('Request Network.clearAcceptedEncodingsOverride failed') ||
           string.includes('devtools://devtools/bundled/core/protocol_client') ||
+          string.includes('protocol_client.js') ||
           // Suppress camera deprecation warnings
           string.includes('AVCaptureDeviceTypeExternal is deprecated for Continuity Cameras')) {
         return true; // Suppress these messages
