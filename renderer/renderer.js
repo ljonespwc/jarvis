@@ -2,16 +2,16 @@ import LayercodeClient from "https://cdn.jsdelivr.net/npm/@layercode/js-sdk@late
 
 class JarvisUI {
   constructor() {
-    this.isListening = false;
-    this.micButton = document.getElementById('micButton');
     this.statusDiv = document.getElementById('status');
     this.errorDiv = document.getElementById('error');
     this.todosDiv = document.getElementById('todos');
     this.layercodeClient = null;
     this.currentSessionId = null;
+    this.userSpeaking = false;
+    this.agentSpeaking = false;
     
     this.initializeLayercode();
-    this.setupEventListeners();
+    this.setupVisualFeedback();
   }
   
   async initializeLayercode() {
@@ -27,13 +27,13 @@ class JarvisUI {
         onConnect: ({ sessionId }) => {
           console.log('✅ Connected to Layercode:', sessionId);
           this.currentSessionId = sessionId;
-          this.updateStatus('Ready - Click microphone to speak');
+          this.updateStatus('🎤 JARVIS is listening... Speak naturally');
         },
         onDisconnect: () => {
           console.log('🔌 Disconnected from Layercode');
           this.updateStatus('Voice processing disconnected');
-          this.isListening = false;
-          this.micButton.classList.remove('listening');
+          this.userSpeaking = false;
+          this.agentSpeaking = false;
         },
         onError: (error) => {
           console.error('❌ Layercode error:', error);
@@ -41,26 +41,47 @@ class JarvisUI {
         },
         onTranscript: (transcript) => {
           console.log('📝 Voice input:', transcript.substring(0, 50));
-          this.updateStatus(`Processing: "${transcript}"`);
+          this.updateStatus(`You said: "${transcript}"`);
+          this.userSpeaking = false;
         },
         onResponse: (response) => {
           console.log('🗣️ JARVIS response:', response.substring(0, 50));
-          this.updateStatus(`JARVIS: "${response}"`);
+          this.updateStatus(`🤖 JARVIS: "${response}"`);
+          this.agentSpeaking = true;
           
-          // Auto-reset after 3 seconds
+          // Auto-reset to listening after response
           setTimeout(() => {
-            this.updateStatus('Ready - Click microphone to speak');
-            this.isListening = false;
-            this.micButton.classList.remove('listening');
-          }, 3000);
+            this.updateStatus('🎤 JARVIS is listening... Speak naturally');
+            this.agentSpeaking = false;
+          }, 4000);
+        },
+        // Add audio amplitude detection like lickedin
+        onAudioData: (data) => {
+          if (data.userAudioAmplitude > 0.01) {
+            if (!this.userSpeaking) {
+              this.userSpeaking = true;
+              this.updateStatus('🎤 Listening to you...');
+            }
+          } else {
+            this.userSpeaking = false;
+          }
+          
+          if (data.agentAudioAmplitude > 0.01) {
+            this.agentSpeaking = true;
+          } else {
+            this.agentSpeaking = false;
+          }
+          
+          this.updateVisualFeedback(data);
         },
         onTurnStarted: () => {
-          console.log('🎤 Listening...');
-          this.updateStatus('Listening...');
+          console.log('🎤 Turn started');
+          this.userSpeaking = true;
         },
         onTurnFinished: () => {
           console.log('⏳ Processing...');
-          this.updateStatus('Processing...');
+          this.updateStatus('⏳ JARVIS is thinking...');
+          this.userSpeaking = false;
         }
       });
 
@@ -74,72 +95,38 @@ class JarvisUI {
     }
   }
 
-
-  setupEventListeners() {
-    this.micButton.addEventListener('click', () => {
-      this.toggleListening();
-    });
+  setupVisualFeedback() {
+    // Visual feedback for automatic voice detection - no buttons needed
+    console.log('🎨 Setting up visual feedback for automatic voice interaction');
   }
   
-  async toggleListening() {
-    try {
-      if (!this.isListening) {
-        await this.startListening();
-      } else {
-        await this.stopListening();
-      }
-    } catch (error) {
-      this.showError('Failed to toggle microphone: ' + error.message);
+  updateVisualFeedback(data) {
+    // Update UI based on audio amplitude data like lickedin
+    const voiceCircle = document.getElementById('voiceCircle');
+    if (!voiceCircle) return;
+    
+    // Update visual state based on who's speaking
+    voiceCircle.classList.remove('listening', 'speaking');
+    
+    if (this.userSpeaking) {
+      voiceCircle.classList.add('listening');
+      voiceCircle.textContent = '🎤';
+    } else if (this.agentSpeaking) {
+      voiceCircle.classList.add('speaking');
+      voiceCircle.textContent = '🗣️';
+    } else {
+      voiceCircle.textContent = '🤖';
     }
   }
-  
-  async startListening() {
-    try {
-      if (!this.layercodeClient) {
-        throw new Error('Layercode client not initialized');
-      }
-      
-      console.log('🎤 Starting voice capture...');
-      
-      this.layercodeClient.triggerUserTurnStarted();
-      
-      this.isListening = true;
-      this.micButton.classList.add('listening');
-      this.clearError();
-      
-      console.log('🎤 Voice capture started');
-    } catch (error) {
-      console.error('❌ Failed to start listening:', error);
-      this.showError('Failed to start voice capture: ' + error.message);
-    }
-  }
-  
-  async stopListening() {
-    try {
-      if (this.layercodeClient) {
-        this.layercodeClient.triggerUserTurnFinished();
-      }
-      
-      this.isListening = false;
-      this.micButton.classList.remove('listening');
-      this.updateStatus('Processing...');
-      
-      console.log('🛑 Voice capture stopped');
-    } catch (error) {
-      console.error('❌ Failed to stop listening:', error);
-      this.showError('Failed to stop voice capture: ' + error.message);
-    }
-  }
-  
   
   handleVoiceError(error) {
     console.error('❌ Voice error:', error);
     this.showError('Voice error: ' + error.message);
     
-    // Reset listening state
-    this.isListening = false;
-    this.micButton.classList.remove('listening');
-    this.updateStatus('Ready');
+    // Reset state for automatic voice interaction
+    this.userSpeaking = false;
+    this.agentSpeaking = false;
+    this.updateStatus('Connection error - Please refresh');
   }
   
   updateStatus(message) {

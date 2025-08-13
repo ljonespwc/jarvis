@@ -39,40 +39,42 @@
             opacity: 0.8;
         }
         
-        .microphone-container {
+        .voice-indicator {
             position: relative;
-            margin: 20px 0;
+            margin: 30px 0;
+            text-align: center;
         }
         
-        .mic-button {
-            width: 80px;
-            height: 80px;
+        .voice-status-circle {
+            width: 120px;
+            height: 120px;
             border-radius: 50%;
-            border: none;
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            font-size: 32px;
-            cursor: pointer;
-            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
             display: flex;
             align-items: center;
             justify-content: center;
+            font-size: 48px;
+            margin: 0 auto 20px;
+            transition: all 0.3s ease;
         }
         
-        .mic-button:hover {
-            background: rgba(255, 255, 255, 0.3);
-            transform: scale(1.05);
+        .voice-status-circle.listening {
+            border-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.2);
+            animation: pulse 2s infinite;
         }
         
-        .mic-button.listening {
-            background: #ff4757;
+        .voice-status-circle.speaking {
+            border-color: #10b981;
+            background: rgba(16, 185, 129, 0.2);
             animation: pulse 1.5s infinite;
         }
         
         @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-            100% { transform: scale(1); }
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 20px rgba(255, 255, 255, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
         }
         
         .status {
@@ -106,15 +108,16 @@
             <p class="subtitle">Voice Todo Assistant</p>
         </div>
         
-        <div class="microphone-container">
-            <button id="micButton" class="mic-button">🎤</button>
+        <div class="voice-indicator">
+            <div id="voiceCircle" class="voice-status-circle">🤖</div>
         </div>
         
-        <div id="status" class="status">Click microphone to start</div>
+        <div id="status" class="status">Initializing JARVIS...</div>
         <div id="error" class="error"></div>
         
         <div class="help-text">
-            Say: "What needs my attention?" • "Add [task]" • "Mark [task] done"
+            JARVIS listens automatically. Try saying:<br>
+            "What needs my attention?" • "Add walk the dog" • "Mark groceries done"
         </div>
     </div>
     
