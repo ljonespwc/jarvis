@@ -1,14 +1,20 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const os = require('os');
+const http = require('http');
+const url = require('url');
 require('dotenv').config();
 
 const VoiceManager = require('./src/VoiceManager');
+const TodoFileManager = require('./src/TodoFileManager');
 
 class JarvisApp {
   constructor() {
     this.mainWindow = null;
     this.voiceManager = new VoiceManager();
+    this.todoManager = new TodoFileManager();
+    this.localServer = null;
+    this.serverPort = 47821;
   }
 
   createWindow() {
@@ -76,6 +82,98 @@ class JarvisApp {
 
   async initialize() {
     await this.voiceManager.initialize();
+    await this.startLocalServer();
+  }
+
+  async startLocalServer() {
+    return new Promise((resolve, reject) => {
+      this.localServer = http.createServer(async (req, res) => {
+        // Enable CORS for webhook calls
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+        if (req.method === 'OPTIONS') {
+          res.writeHead(200);
+          res.end();
+          return;
+        }
+
+        const parsedUrl = url.parse(req.url, true);
+        
+        try {
+          if (req.method === 'POST' && parsedUrl.pathname === '/todo') {
+            let body = '';
+            req.on('data', chunk => body += chunk);
+            req.on('end', async () => {
+              try {
+                const { action, data } = JSON.parse(body);
+                console.log('📡 Local server received:', action, data);
+                
+                let result;
+                
+                switch (action) {
+                  case 'read_tasks':
+                    result = await this.todoManager.getActiveTasks();
+                    break;
+                    
+                  case 'get_priority_tasks':
+                    result = await this.todoManager.getPriorityTasks(data?.count || 3);
+                    break;
+                    
+                  case 'add_task':
+                    result = await this.todoManager.addTask(data.text);
+                    break;
+                    
+                  case 'mark_done':
+                    result = await this.todoManager.markTaskDone(data.query);
+                    break;
+                    
+                  case 'get_stats':
+                    result = await this.todoManager.getStats();
+                    break;
+                    
+                  default:
+                    result = { error: 'Unknown action' };
+                }
+                
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: true, data: result }));
+                
+              } catch (error) {
+                console.error('❌ Local server error:', error);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: error.message }));
+              }
+            });
+            
+          } else {
+            res.writeHead(404);
+            res.end('Not found');
+          }
+          
+        } catch (error) {
+          console.error('❌ Server request error:', error);
+          res.writeHead(500);
+          res.end('Server error');
+        }
+      });
+
+      this.localServer.listen(this.serverPort, 'localhost', () => {
+        console.log(`🌐 JARVIS local server running on http://localhost:${this.serverPort}`);
+        resolve();
+      });
+
+      this.localServer.on('error', (error) => {
+        if (error.code === 'EADDRINUSE') {
+          console.log(`⚠️ Port ${this.serverPort} is busy, trying ${this.serverPort + 1}`);
+          this.serverPort++;
+          this.startLocalServer().then(resolve).catch(reject);
+        } else {
+          reject(error);
+        }
+      });
+    });
   }
 }
 
@@ -115,5 +213,10 @@ app.on('window-all-closed', () => {
 app.on('before-quit', async () => {
   if (jarvisApp.voiceManager) {
     await jarvisApp.voiceManager.cleanup();
+  }
+  
+  if (jarvisApp.localServer) {
+    jarvisApp.localServer.close();
+    console.log('🌐 Local server stopped');
   }
 });

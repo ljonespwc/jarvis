@@ -69,68 +69,46 @@ export default async function handler(req, res) {
       return;
     }
 
-    // File operations
-    async function readTasks() {
+    // Local server communication functions
+    async function callLocalServer(action, data = {}) {
       try {
-        const content = await fs.readFile(TODO_FILE, 'utf8');
-        const lines = content.split('\n').filter(line => line.trim());
-        const active = lines.filter(line => !line.startsWith('[DONE]') && !line.startsWith('#'));
-        return active;
+        const response = await fetch('http://localhost:47821/todo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action, data })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          return result.data;
+        } else {
+          throw new Error(result.error || 'Local server error');
+        }
       } catch (error) {
-        console.error('❌ Failed to read todo file:', error);
-        throw new Error('Could not read your todo file');
+        console.error('❌ Failed to call local server:', error);
+        throw error;
       }
+    }
+
+    async function readTasks() {
+      return await callLocalServer('read_tasks');
+    }
+
+    async function getPriorityTasks(count = 3) {
+      return await callLocalServer('get_priority_tasks', { count });
     }
 
     async function addTask(taskText) {
-      try {
-        const content = await fs.readFile(TODO_FILE, 'utf8');
-        const lines = content.split('\n');
-        
-        // Find where [DONE] section starts, or add before it
-        const doneIndex = lines.findIndex(line => line.startsWith('[DONE]'));
-        const insertIndex = doneIndex === -1 ? lines.length : doneIndex;
-        
-        // Insert new task
-        lines.splice(insertIndex, 0, taskText);
-        
-        await fs.writeFile(TODO_FILE, lines.join('\n'));
-        return `Added "${taskText}" to your todo list`;
-      } catch (error) {
-        console.error('❌ Failed to add task:', error);
-        return 'Sorry, I could not add that task to your file';
-      }
+      return await callLocalServer('add_task', { text: taskText });
     }
 
     async function markTaskDone(taskQuery) {
-      try {
-        const content = await fs.readFile(TODO_FILE, 'utf8');
-        const lines = content.split('\n');
-        
-        // Find matching active task
-        const query = taskQuery.toLowerCase();
-        const taskIndex = lines.findIndex(line => 
-          !line.startsWith('[DONE]') && 
-          !line.startsWith('#') && 
-          line.toLowerCase().includes(query)
-        );
-        
-        if (taskIndex === -1) {
-          return `Could not find task matching "${taskQuery}"`;
-        }
-        
-        const taskText = lines[taskIndex];
-        const today = new Date().toISOString().split('T')[0];
-        
-        // Replace with [DONE] version
-        lines[taskIndex] = `[DONE] ${today} ${taskText}`;
-        
-        await fs.writeFile(TODO_FILE, lines.join('\n'));
-        return `Marked "${taskText}" as complete`;
-      } catch (error) {
-        console.error('❌ Failed to mark task done:', error);
-        return 'Sorry, I could not update your todo file';
-      }
+      return await callLocalServer('mark_done', { query: taskQuery });
+    }
+
+    async function getStats() {
+      return await callLocalServer('get_stats');
     }
 
     // Process commands with ACTUAL file operations
@@ -139,18 +117,21 @@ export default async function handler(req, res) {
 
     try {
       if (lowerText.includes('what needs') || lowerText.includes('attention')) {
-        const tasks = await readTasks();
-        if (tasks.length === 0) {
+        const priorityTasks = await getPriorityTasks(3);
+        const stats = await getStats();
+        
+        if (priorityTasks.length === 0) {
           responseText = "Great! You have no active tasks. Time to relax!";
         } else {
-          responseText = `You have ${tasks.length} tasks: ${tasks.slice(0, 3).join(', ')}`;
+          responseText = `You have ${stats.activeCount} active tasks. Your priorities are: ${priorityTasks.join(', ')}`;
         }
         
       } else if (lowerText.includes('add ')) {
         const taskMatch = text.match(/add (.+)/i);
         if (taskMatch) {
           const newTask = taskMatch[1].trim();
-          responseText = await addTask(newTask);
+          const result = await addTask(newTask);
+          responseText = result.message;
         } else {
           responseText = "What would you like me to add to your todo list?";
         }
@@ -159,7 +140,8 @@ export default async function handler(req, res) {
         const taskMatch = text.match(/mark (.+?) (?:done|complete)/i) || text.match(/(?:mark|complete) (.+)/i);
         if (taskMatch) {
           const taskQuery = taskMatch[1].trim();
-          responseText = await markTaskDone(taskQuery);
+          const result = await markTaskDone(taskQuery);
+          responseText = result.success ? result.message : result.message;
         } else {
           responseText = "Which task would you like me to mark as complete?";
         }
@@ -195,7 +177,12 @@ export default async function handler(req, res) {
       
     } catch (error) {
       console.error('❌ Error processing command:', error);
-      responseText = "Sorry, I had trouble accessing your todo file. Please try again.";
+      
+      if (error.message.includes('ECONNREFUSED') || error.message.includes('Failed to fetch')) {
+        responseText = "Please make sure JARVIS is running on your computer to access your todo file.";
+      } else {
+        responseText = "Sorry, I had trouble accessing your todo file. Please try again.";
+      }
     }
 
     console.log('🗣️ JARVIS response:', responseText.substring(0, 80) + (responseText.length > 80 ? '...' : ''));
