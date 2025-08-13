@@ -143,8 +143,6 @@ export default function VoiceInterfaceClient() {
         />
       </div>
       
-      <div className="status">{status}</div>
-      {error && <div className="error">{error}</div>}
     </>
   )
 }
@@ -165,7 +163,6 @@ function SpeakerCard({ emoji, name, amplitude, speaking, statusText, type }) {
         <div className="bar" style={{ height: `${height}px`, animationDelay: '0.1s' }}></div>
         <div className="bar" style={{ height: `${height}px`, animationDelay: '0.2s' }}></div>
       </div>
-      <div className="speaking-status">{statusText}</div>
     </div>
   )
 }
