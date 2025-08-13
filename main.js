@@ -12,6 +12,8 @@ class JarvisApp {
   }
 
   createWindow() {
+    const isDevelopment = process.env.NODE_ENV !== 'production';
+    
     this.mainWindow = new BrowserWindow({
       width: 400,
       height: 600,
@@ -19,7 +21,10 @@ class JarvisApp {
         nodeIntegration: false,
         contextIsolation: true,
         enableRemoteModule: false,
-        preload: path.join(__dirname, 'preload.js')
+        preload: path.join(__dirname, 'preload.js'),
+        // Suppress dev warnings for cleaner console
+        webSecurity: !isDevelopment,
+        allowRunningInsecureContent: isDevelopment
       },
       titleBarStyle: 'hiddenInset',
       resizable: false,

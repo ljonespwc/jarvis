@@ -40,11 +40,11 @@ class JarvisUI {
           this.handleVoiceError(error);
         },
         onTranscript: (transcript) => {
-          console.log('📝 Transcript received:', transcript);
+          console.log('📝 Voice input:', transcript.substring(0, 50));
           this.updateStatus(`Processing: "${transcript}"`);
         },
         onResponse: (response) => {
-          console.log('🤖 AI Response:', response);
+          console.log('🗣️ JARVIS response:', response.substring(0, 50));
           this.updateStatus(`JARVIS: "${response}"`);
           
           // Auto-reset after 3 seconds
@@ -55,11 +55,11 @@ class JarvisUI {
           }, 3000);
         },
         onTurnStarted: () => {
-          console.log('🎤 Turn started');
+          console.log('🎤 Listening...');
           this.updateStatus('Listening...');
         },
         onTurnFinished: () => {
-          console.log('🛑 Turn finished');
+          console.log('⏳ Processing...');
           this.updateStatus('Processing...');
         }
       });

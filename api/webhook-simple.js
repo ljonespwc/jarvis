@@ -49,16 +49,17 @@ export default async function handler(req, res) {
       .digest('hex');
     
     if (`sha256=${expectedSignature}` !== signature) {
-      console.log('⚠️ Webhook signature mismatch - continuing anyway for development');
-    } else {
-      console.log('✅ Webhook signature verified');
+      console.log('⚠️ Signature mismatch - continuing for development');
     }
   }
 
   try {
-    const { text, type } = req.body || {};
+    const { text, type, turn_id } = req.body || {};
     
-    console.log('Webhook called with:', { text, type });
+    // Only log meaningful webhook calls, not internal Layercode messages
+    if (type === 'session.start' || type === 'message' || text) {
+      console.log('🎤 Voice command:', { text: text?.substring(0, 50), type });
+    }
 
     if (type === 'session.start') {
       const response = 'Hello! I\'m JARVIS, your voice todo assistant. What can I help you with?';
@@ -118,11 +119,11 @@ export default async function handler(req, res) {
       responseText = `I've marked that task as completed.`;
     }
 
-    console.log('Responding with:', responseText);
+    console.log('🗣️ JARVIS response:', responseText.substring(0, 80) + (responseText.length > 80 ? '...' : ''));
 
-    // Send SSE response
-    res.write(`data: ${JSON.stringify({ type: 'response.tts', content: responseText })}\n\n`);
-    res.write(`data: ${JSON.stringify({ type: 'response.end' })}\n\n`);
+    // Send SSE response with proper turn_id if available
+    res.write(`data: ${JSON.stringify({ type: 'response.tts', content: responseText, turn_id })}\n\n`);
+    res.write(`data: ${JSON.stringify({ type: 'response.end', turn_id })}\n\n`);
     res.end();
 
   } catch (error) {
