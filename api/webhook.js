@@ -168,11 +168,22 @@ function generateDefaultResponse(actionName) {
   return responses[actionName] || "Task processed successfully.";
 }
 
+// Verify webhook signature from Layercode
+function verifyWebhookSignature(payload, signature, secret) {
+  const crypto = require('crypto');
+  const expectedSignature = crypto
+    .createHmac('sha256', secret)
+    .update(payload)
+    .digest('hex');
+  
+  return `sha256=${expectedSignature}` === signature;
+}
+
 export default async function handler(req, res) {
   // Set CORS headers for Layercode
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Layercode-Signature');
   
   // Handle preflight requests
   if (req.method === 'OPTIONS') {
@@ -185,7 +196,25 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Verify webhook signature if secret is provided
+    const signature = req.headers['x-layercode-signature'];
+    const webhookSecret = process.env.LAYERCODE_WEBHOOK_SECRET;
+    
+    if (webhookSecret && signature) {
+      const rawBody = JSON.stringify(req.body);
+      if (!verifyWebhookSignature(rawBody, signature, webhookSecret)) {
+        console.error('❌ Invalid webhook signature');
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+      console.log('✅ Webhook signature verified');
+    }
+
     console.log('📨 Webhook received:', req.body);
+    
+    // Validate request body
+    if (!req.body) {
+      return res.status(400).json({ error: 'Missing request body' });
+    }
     
     const { text, connection_id, session_id, type, turn_id } = req.body;
     
