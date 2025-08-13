@@ -1,6 +1,15 @@
 // Vercel serverless function for Layercode webhook
 const { OpenAI } = require('openai');
 
+// Dynamic import for Layercode SDK (ES module)
+let layercodeSDK = null;
+async function getLayercodeSDK() {
+  if (!layercodeSDK) {
+    layercodeSDK = await import('@layercode/node-server-sdk');
+  }
+  return layercodeSDK;
+}
+
 // Initialize OpenAI client
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
@@ -180,59 +189,37 @@ function verifyWebhookSignature(payload, signature, secret) {
 }
 
 export default async function handler(req, res) {
-  // Set CORS headers for Layercode
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Layercode-Signature');
-  
-  // Handle preflight requests
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
   try {
-    // Verify webhook signature if secret is provided
-    const signature = req.headers['x-layercode-signature'];
-    const webhookSecret = process.env.LAYERCODE_WEBHOOK_SECRET;
+    // Get Layercode SDK
+    const sdk = await getLayercodeSDK();
     
-    if (webhookSecret && signature) {
-      const rawBody = JSON.stringify(req.body);
-      if (!verifyWebhookSignature(rawBody, signature, webhookSecret)) {
-        console.error('❌ Invalid webhook signature');
-        return res.status(401).json({ error: 'Unauthorized' });
-      }
-      console.log('✅ Webhook signature verified');
-    }
+    // Use Layercode's streamResponse to handle SSE properly
+    return sdk.streamResponse(req, async ({ stream }) => {
+      await handleVoiceCommand(req.body, stream);
+    })(req, res);
+    
+  } catch (error) {
+    console.error('❌ Webhook error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
 
-    console.log('📨 Webhook received:', req.body);
+async function handleVoiceCommand(payload, stream) {
+  try {
+    console.log('📨 Webhook received:', payload);
     
-    // Validate request body
-    if (!req.body) {
-      return res.status(400).json({ error: 'Missing request body' });
-    }
-    
-    const { text, connection_id, session_id, type, turn_id } = req.body;
+    const { text, connection_id, session_id, type, turn_id } = payload;
     
     if (type === 'session.start') {
-      return res.json({ 
-        type: "response.tts",
-        content: 'Hello! I\'m JARVIS v1.0, your voice todo assistant. What can I help you with?',
-        turn_id: turn_id,
-        metadata: { version: '1.0.0' }
-      });
+      stream.tts('Hello! I\'m JARVIS v1.0, your voice todo assistant. What can I help you with?');
+      stream.end();
+      return;
     }
 
     if (!text || text.trim() === '') {
-      return res.json({ 
-        type: "response.tts",
-        content: 'I didn\'t catch that. Could you please repeat?',
-        turn_id: turn_id
-      });
+      stream.tts('I didn\'t catch that. Could you please repeat?');
+      stream.end();
+      return;
     }
 
     console.log(`🎤 Processing voice command: "${text}"`);
@@ -285,37 +272,14 @@ export default async function handler(req, res) {
       responseText = aiResult.response || 'I didn\'t understand that command. Try asking "What needs my attention?" or "Add [task name]".';
     }
 
-    // Send response
-    console.log(`🗣️ Response: ${responseText}`);
-    
-    // Send TTS response in Layercode format
-    // Note: Layercode expects multiple events, so we need to send both TTS and end events
-    const ttsResponse = {
-      type: "response.tts",
-      content: responseText,
-      turn_id: turn_id
-    };
-    
-    const endResponse = {
-      type: "response.end", 
-      turn_id: turn_id,
-      metadata: {
-        todos: todos,
-        action: aiResult.action,
-        timestamp: new Date().toISOString()
-      }
-    };
-
-    // Try simple text response to see if TTS works at all
-    res.json({
-      message: responseText
-    });
+    // Send TTS response using Layercode SDK
+    console.log(`🗣️ Speaking: ${responseText}`);
+    stream.tts(responseText);
+    stream.end();
 
   } catch (error) {
     console.error('❌ Error handling voice command:', error);
-    res.status(500).json({ 
-      message: 'Sorry, I encountered an error processing that request.',
-      error: error.message 
-    });
+    stream.tts('Sorry, I encountered an error processing that request.');
+    stream.end();
   }
 }
