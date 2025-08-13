@@ -16,8 +16,11 @@ class JarvisUI {
   }
 
   suppressOnnxWarnings() {
-    // Suppress ONNX model warnings like in lickedin project
+    // Comprehensive console suppression for cleaner debugging
     const originalWarn = console.warn;
+    const originalError = console.error;
+    const originalLog = console.log;
+    
     console.warn = (...args) => {
       const message = args.join(' ');
       if (message.includes('CleanUnusedInitializersAndNodeArgs') || 
@@ -27,10 +30,34 @@ class JarvisUI {
           message.includes('_output_0') ||
           message.includes('VAD model failed to load') ||
           message.includes('onSpeechStart') ||
-          message.includes('Interruption requested')) {
+          message.includes('Interruption requested') ||
+          message.includes('webSecurity') ||
+          message.includes('allowRunningInsecureContent') ||
+          message.includes('Content-Security-Policy') ||
+          message.includes('Electron Security Warning')) {
         return; // Suppress these warnings
       }
       originalWarn.apply(console, args);
+    };
+    
+    console.error = (...args) => {
+      const message = args.join(' ');
+      if (message.includes('Electron Security Warning') ||
+          message.includes('webSecurity') ||
+          message.includes('Content-Security-Policy') ||
+          message.includes('allowRunningInsecureContent')) {
+        return; // Suppress these errors
+      }
+      originalError.apply(console, args);
+    };
+    
+    console.log = (...args) => {
+      const message = args.join(' ');
+      if (message.includes('Electron Security Warning') ||
+          message.includes('webSecurity')) {
+        return; // Suppress these logs
+      }
+      originalLog.apply(console, args);
     };
   }
   

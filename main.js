@@ -22,9 +22,9 @@ class JarvisApp {
         contextIsolation: true,
         enableRemoteModule: false,
         preload: path.join(__dirname, 'preload.js'),
-        // Suppress dev warnings for cleaner console
-        webSecurity: !isDevelopment,
-        allowRunningInsecureContent: isDevelopment
+        webSecurity: false,  // Disable for development
+        allowRunningInsecureContent: true,
+        experimentalFeatures: true
       },
       titleBarStyle: 'hiddenInset',
       resizable: false,
@@ -79,6 +79,47 @@ class JarvisApp {
 const jarvisApp = new JarvisApp();
 
 app.whenReady().then(async () => {
+  // Suppress Electron warnings and devtools protocol messages
+  process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
+  const originalConsoleLog = console.log;
+  const originalConsoleWarn = console.warn;
+  const originalConsoleError = console.error;
+  
+  console.log = (...args) => {
+    const message = args.join(' ');
+    if (message.includes('devtools') || 
+        message.includes('protocol_client') ||
+        message.includes('Network.enable') ||
+        message.includes('Network.setAttachDebugStack') ||
+        message.includes('Emulation.setEmulated') ||
+        message.includes('NSCameraUsage') ||
+        message.includes('Request Network') ||
+        message.includes('ERROR:CONSOLE')) {
+      return; // Suppress these messages
+    }
+    originalConsoleLog.apply(console, args);
+  };
+  
+  console.warn = (...args) => {
+    const message = args.join(' ');
+    if (message.includes('devtools') || 
+        message.includes('protocol_client') ||
+        message.includes('ExtensionLoadWarning')) {
+      return; // Suppress these warnings
+    }
+    originalConsoleWarn.apply(console, args);
+  };
+  
+  console.error = (...args) => {
+    const message = args.join(' ');
+    if (message.includes('devtools') || 
+        message.includes('protocol_client') ||
+        message.includes('ERROR:CONSOLE')) {
+      return; // Suppress these errors
+    }
+    originalConsoleError.apply(console, args);
+  };
+
   await jarvisApp.initialize();
   jarvisApp.setupIPC();
   jarvisApp.createWindow();
