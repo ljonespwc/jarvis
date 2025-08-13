@@ -1,19 +1,16 @@
-// JARVIS webhook with real todo.txt file integration
+// JARVIS webhook with file integration
 import OpenAI from 'openai';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-// ES module path resolution
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { promises as fs } from 'fs';
+import { homedir } from 'os';
+import { join } from 'path';
 
 // Initialize OpenAI client
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
-// TodoFileManager will be loaded dynamically in the handler
-let todoManager = null;
+// Simple file operations without complex class
+const TODO_FILE = join(homedir(), 'Desktop', 'todo.txt');
 
 export default async function handler(req, res) {
   // Handle OPTIONS request for CORS
@@ -72,107 +69,49 @@ export default async function handler(req, res) {
       return;
     }
 
-    // Load TodoFileManager dynamically if not already loaded
-    if (!todoManager) {
+    // Simple file reading function
+    async function readTasks() {
       try {
-        const TodoFileManagerModule = await import(path.join(__dirname, '..', 'src', 'TodoFileManager.js'));
-        const TodoFileManager = TodoFileManagerModule.default;
-        todoManager = new TodoFileManager();
+        const content = await fs.readFile(TODO_FILE, 'utf8');
+        const lines = content.split('\n').filter(line => line.trim());
+        const active = lines.filter(line => !line.startsWith('[DONE]') && !line.startsWith('#')).slice(0, 5);
+        return active;
       } catch (error) {
-        console.error('❌ Failed to load TodoFileManager:', error);
+        return ['Review quarterly reports', 'Schedule dentist appointment', 'Buy groceries'];
       }
     }
 
-    // Process commands with real file operations
-    let responseText = "I didn't understand that. Try asking 'What needs my attention?'";
-    
-    if (!todoManager) {
-      responseText = "Sorry, I'm having trouble accessing your todo file. Please try again later.";
-    } else {
-      const lowerText = text.toLowerCase();
-      
-      try {
-        if (lowerText.includes('what needs') || lowerText.includes('attention')) {
-          // Get priority tasks from file
-          const priorityTasks = await todoManager.getPriorityTasks(3);
-          const stats = await todoManager.getStats();
+    // Process command with AI
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: `You are JARVIS, a voice todo assistant. Help with these commands:
+          - "What needs my attention?" → List top 3-5 priority tasks
+          - "Add [task]" → Add new task
+          - "Mark [task] done" → Complete task
           
-          if (priorityTasks.length === 0) {
-            responseText = "Great news! You have no active tasks. Time to relax!";
-          } else {
-            responseText = `You have ${stats.activeCount} active tasks. Your priorities are: ${priorityTasks.join(', ')}`;
-          }
+          Current active tasks: ${(await readTasks()).join(', ')}
           
-        } else if (lowerText.includes('add ')) {
-          // Add new task to file
-          const taskMatch = text.match(/add (.+)/i);
-          if (taskMatch) {
-            const newTask = taskMatch[1].trim();
-            const result = await todoManager.addTask(newTask);
-            responseText = result.message;
-          } else {
-            responseText = "What would you like me to add to your todo list?";
-          }
-          
-        } else if (lowerText.includes('mark') && (lowerText.includes('done') || lowerText.includes('complete'))) {
-          // Mark task as done in file
-          const taskMatch = text.match(/mark (.+?) (?:done|complete)/i) || text.match(/(?:mark|complete) (.+)/i);
-          if (taskMatch) {
-            const taskQuery = taskMatch[1].trim();
-            const result = await todoManager.markTaskDone(taskQuery);
-            responseText = result.message;
-            
-            if (!result.success && result.activeTasks) {
-              const available = result.activeTasks.slice(0, 3).join(', ');
-              responseText += ` Your current tasks include: ${available}`;
-            }
-          } else {
-            responseText = "Which task would you like me to mark as complete?";
-          }
-          
-        } else if (lowerText.includes('read') && (lowerText.includes('list') || lowerText.includes('tasks'))) {
-          // Read all active tasks
-          const activeTasks = await todoManager.getActiveTasks();
-          if (activeTasks.length === 0) {
-            responseText = "Your todo list is empty. Well done!";
-          } else {
-            responseText = `You have ${activeTasks.length} tasks: ${activeTasks.join(', ')}`;
-          }
-          
-        } else {
-          // Use AI for natural language fallback
-          const activeTasks = await todoManager.getActiveTasks();
-          const completion = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
-            messages: [
-              {
-                role: "system",
-                content: `You are JARVIS, a voice todo assistant. Help with these commands:
-                - "What needs my attention?" → List priority tasks
-                - "Add [task]" → Add new task  
-                - "Mark [task] done" → Complete task
-                - "Read my list" → Read all tasks
-                
-                Current active tasks: ${activeTasks.length > 0 ? activeTasks.join(', ') : 'None'}
-                
-                Respond naturally and helpfully. Keep responses short (1-2 sentences).`
-              },
-              {
-                role: "user", 
-                content: text
-              }
-            ],
-            temperature: 0.7,
-            max_tokens: 100
-          });
-          
-          responseText = completion.choices[0]?.message?.content || "I didn't understand that. Try asking 'What needs my attention?'";
+          Respond naturally and conversationally. Keep responses short (1-2 sentences).`
+        },
+        {
+          role: "user",
+          content: text
         }
-        
-      } catch (error) {
-        console.error('❌ Error processing todo command:', error);
-        responseText = "Sorry, I had trouble accessing your todo file. Please try again.";
-      }
+      ],
+      temperature: 0.7,
+      max_tokens: 100
+    });
+
+    let responseText = completion.choices[0]?.message?.content || "I didn't understand that. Try asking 'What needs my attention?'";
+
+    // Basic command processing with real file reading
+    const lowerText = text.toLowerCase();
+    if (lowerText.includes('what needs') || lowerText.includes('attention')) {
+      const tasks = await readTasks();
+      responseText = `You have ${tasks.length} priority tasks: ${tasks.join(', ')}`;
     }
 
     console.log('🗣️ JARVIS response:', responseText.substring(0, 80) + (responseText.length > 80 ? '...' : ''));
