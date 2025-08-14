@@ -27,5 +27,15 @@ contextBridge.exposeInMainWorld('jarvisAPI', {
 });
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  setSessionId: (sessionId) => ipcRenderer.send('set-session-id', sessionId)
+  setSessionId: (sessionId) => ipcRenderer.send('set-session-id', sessionId),
+  
+  // Todo management methods
+  getTasks: () => ipcRenderer.invoke('get-tasks'),
+  onTaskUpdate: (callback) => {
+    ipcRenderer.on('task-updated', (event, data) => callback(data));
+    return () => ipcRenderer.removeAllListeners('task-updated');
+  },
+  removeTaskListener: (callback) => {
+    ipcRenderer.removeListener('task-updated', callback);
+  }
 });
