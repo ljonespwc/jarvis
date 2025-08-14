@@ -7,6 +7,8 @@ class TodoFileManager {
     this.todoFilePath = path.join(os.homedir(), 'Desktop', 'todo.txt');
     this.backupDir = path.join(os.homedir(), '.jarvis-backups');
     this.maxBackups = 10;
+    this.nextId = 1; // Track next available task ID
+    this.usedIds = new Set(); // Track used IDs to avoid conflicts
   }
 
   async ensureBackupDir() {
@@ -83,6 +85,8 @@ class TodoFileManager {
     const lines = content.split('\n').map(line => line.trim()).filter(line => line);
     const activeTasks = [];
     const doneTasks = [];
+    this.usedIds.clear();
+    let maxId = 0;
 
     for (const line of lines) {
       if (line.startsWith('#')) {
@@ -99,15 +103,51 @@ class TodoFileManager {
           });
         }
       } else if (line.length > 0) {
-        // Active task
-        activeTasks.push({
-          text: line,
-          originalLine: line
-        });
+        // Active task - check for ID prefix
+        const idMatch = line.match(/^(\d{3})\s+(.+)$/);
+        if (idMatch) {
+          // Task with ID: "001 Task description"
+          const id = parseInt(idMatch[1]);
+          const taskText = idMatch[2];
+          this.usedIds.add(id);
+          maxId = Math.max(maxId, id);
+          
+          activeTasks.push({
+            id: id,
+            text: taskText,
+            originalLine: line
+          });
+        } else {
+          // Legacy task without ID - assign one
+          const newId = this.getNextAvailableId();
+          this.usedIds.add(newId);
+          maxId = Math.max(maxId, newId);
+          
+          activeTasks.push({
+            id: newId,
+            text: line,
+            originalLine: line,
+            needsIdAssignment: true // Flag for file rewrite
+          });
+        }
       }
     }
 
+    // Update next ID counter
+    this.nextId = maxId + 1;
+
     return { activeTasks, doneTasks };
+  }
+
+  getNextAvailableId() {
+    while (this.usedIds.has(this.nextId)) {
+      this.nextId++;
+    }
+    return this.nextId++;
+  }
+
+  formatTaskId(id) {
+    return id.toString().padStart(3, '0');
   }
 
   async writeTodoFile(activeTasks, doneTasks) {
@@ -116,9 +156,10 @@ class TodoFileManager {
 
     const lines = ['# My Todo List'];
     
-    // Add active tasks
+    // Add active tasks with IDs
     activeTasks.forEach(task => {
-      lines.push(task.text);
+      const id = this.formatTaskId(task.id);
+      lines.push(`${id} ${task.text}`);
     });
 
     // Add empty line before done tasks if there are any
@@ -241,15 +282,20 @@ class TodoFileManager {
         formattedTask += ` (due: ${deadlineStr})`;
       }
 
+      // Assign new ID
+      const newId = this.getNextAvailableId();
+      this.usedIds.add(newId);
+
       activeTasks.push({
+        id: newId,
         text: formattedTask,
-        originalLine: formattedTask
+        originalLine: `${this.formatTaskId(newId)} ${formattedTask}`
       });
 
       await this.writeTodoFile(activeTasks, doneTasks);
-      console.log('➕ Added task:', formattedTask);
+      console.log('➕ Added task:', `${this.formatTaskId(newId)} ${formattedTask}`);
       
-      return { success: true, message: 'Added' };
+      return { success: true, message: `Added as task ${this.formatTaskId(newId)}` };
     } catch (error) {
       console.error('❌ Error adding task:', error);
       return { success: false, message: 'Failed to add task' };
@@ -260,35 +306,32 @@ class TodoFileManager {
     try {
       const { activeTasks, doneTasks } = await this.readTodoFile();
       
-      // Find matching task (fuzzy matching)
-      const query = taskQuery.toLowerCase();
-      const matchIndex = activeTasks.findIndex(task => 
-        task.text.toLowerCase().includes(query)
-      );
+      // Find matching task by ID or text
+      const { index: matchIndex, matchType } = this.findTaskByQuery(activeTasks, taskQuery);
 
       if (matchIndex === -1) {
         return { 
           success: false, 
-          message: `Could not find task matching "${taskQuery}"`,
-          activeTasks: activeTasks.map(t => t.text)
+          message: `Could not find task matching "${taskQuery}"`
         };
       }
 
       const completedTask = activeTasks[matchIndex];
       const today = new Date().toISOString().split('T')[0];
 
-      // Move task to done list
+      // Move task to done list (without ID)
       doneTasks.push({
         text: completedTask.text,
         completedDate: today,
         originalLine: `[DONE] ${today} ${completedTask.text}`
       });
 
-      // Remove from active tasks
+      // Remove from active tasks and free up the ID
+      this.usedIds.delete(completedTask.id);
       activeTasks.splice(matchIndex, 1);
 
       await this.writeTodoFile(activeTasks, doneTasks);
-      console.log('✅ Marked done:', completedTask.text);
+      console.log('✅ Marked done:', `${this.formatTaskId(completedTask.id)} ${completedTask.text}`);
 
       return { success: true, message: 'Done' };
     } catch (error) {
@@ -301,21 +344,19 @@ class TodoFileManager {
     try {
       const { activeTasks, doneTasks } = await this.readTodoFile();
       
-      const query = taskQuery.toLowerCase();
-      const matchIndex = activeTasks.findIndex(task => 
-        task.text.toLowerCase().includes(query)
-      );
+      const { index: matchIndex } = this.findTaskByQuery(activeTasks, taskQuery);
 
       if (matchIndex === -1) {
         return { success: false, message: `Could not find task matching "${taskQuery}"` };
       }
 
-      const oldText = activeTasks[matchIndex].text;
-      activeTasks[matchIndex].text = newText.trim();
-      activeTasks[matchIndex].originalLine = newText.trim();
+      const task = activeTasks[matchIndex];
+      const oldText = task.text;
+      task.text = newText.trim();
+      task.originalLine = `${this.formatTaskId(task.id)} ${newText.trim()}`;
 
       await this.writeTodoFile(activeTasks, doneTasks);
-      console.log('🔄 Updated task:', oldText, '→', newText);
+      console.log('🔄 Updated task:', `${this.formatTaskId(task.id)} ${oldText}`, '→', `${this.formatTaskId(task.id)} ${newText}`);
 
       return { success: true, message: 'Updated' };
     } catch (error) {
@@ -328,20 +369,20 @@ class TodoFileManager {
     try {
       const { activeTasks, doneTasks } = await this.readTodoFile();
       
-      const query = taskQuery.toLowerCase();
-      const matchIndex = activeTasks.findIndex(task => 
-        task.text.toLowerCase().includes(query)
-      );
+      const { index: matchIndex } = this.findTaskByQuery(activeTasks, taskQuery);
 
       if (matchIndex === -1) {
         return { success: false, message: `Could not find task matching "${taskQuery}"` };
       }
 
       const deletedTask = activeTasks[matchIndex];
+      
+      // Free up the ID and remove task
+      this.usedIds.delete(deletedTask.id);
       activeTasks.splice(matchIndex, 1);
 
       await this.writeTodoFile(activeTasks, doneTasks);
-      console.log('🗑️ Deleted task:', deletedTask.text);
+      console.log('🗑️ Deleted task:', `${this.formatTaskId(deletedTask.id)} ${deletedTask.text}`);
 
       return { success: true, message: 'Removed' };
     } catch (error) {
@@ -354,27 +395,26 @@ class TodoFileManager {
     try {
       const { activeTasks, doneTasks } = await this.readTodoFile();
       
-      const query = taskQuery.toLowerCase();
-      const matchIndex = activeTasks.findIndex(task => 
-        task.text.toLowerCase().includes(query)
-      );
+      // Find matching task by ID or text
+      const { index: matchIndex } = this.findTaskByQuery(activeTasks, taskQuery);
 
       if (matchIndex === -1) {
         return { success: false, message: `Could not find task matching "${taskQuery}"` };
       }
 
-      let taskText = activeTasks[matchIndex].text;
+      const task = activeTasks[matchIndex];
+      let taskText = task.text;
       const deadlineStr = this.formatDeadline(deadline);
       
       // Remove existing deadline if present
       taskText = taskText.replace(/\s*\(due:.*?\)/, '');
       taskText += ` (due: ${deadlineStr})`;
 
-      activeTasks[matchIndex].text = taskText;
-      activeTasks[matchIndex].originalLine = taskText;
+      task.text = taskText;
+      task.originalLine = `${this.formatTaskId(task.id)} ${taskText}`;
 
       await this.writeTodoFile(activeTasks, doneTasks);
-      console.log('📅 Added deadline:', taskText);
+      console.log('📅 Added deadline:', `${this.formatTaskId(task.id)} ${taskText}`);
 
       return { success: true, message: 'Updated' };
     } catch (error) {
@@ -387,16 +427,15 @@ class TodoFileManager {
     try {
       const { activeTasks, doneTasks } = await this.readTodoFile();
       
-      const query = taskQuery.toLowerCase();
-      const matchIndex = activeTasks.findIndex(task => 
-        task.text.toLowerCase().includes(query)
-      );
+      // Find matching task by ID or text
+      const { index: matchIndex } = this.findTaskByQuery(activeTasks, taskQuery);
 
       if (matchIndex === -1) {
         return { success: false, message: `Could not find task matching "${taskQuery}"` };
       }
 
-      let taskText = activeTasks[matchIndex].text;
+      const task = activeTasks[matchIndex];
+      let taskText = task.text;
       
       // Remove existing priority markers
       taskText = taskText.replace(/^\[URGENT\]\s*/, '').replace(/^\[LOW\]\s*/, '');
@@ -405,11 +444,11 @@ class TodoFileManager {
       if (priority === 'urgent') taskText = `[URGENT] ${taskText}`;
       if (priority === 'low') taskText = `[LOW] ${taskText}`;
 
-      activeTasks[matchIndex].text = taskText;
-      activeTasks[matchIndex].originalLine = taskText;
+      task.text = taskText;
+      task.originalLine = `${this.formatTaskId(task.id)} ${taskText}`;
 
       await this.writeTodoFile(activeTasks, doneTasks);
-      console.log('🏷️ Set priority:', taskText);
+      console.log('🏷️ Set priority:', `${this.formatTaskId(task.id)} ${taskText}`);
 
       return { success: true, message: 'Updated' };
     } catch (error) {
@@ -467,6 +506,33 @@ class TodoFileManager {
   }
 
   // Helper method to format deadlines
+  // Helper method to find task by ID or text
+  findTaskByQuery(activeTasks, taskQuery) {
+    const query = taskQuery.trim();
+    
+    // Try ID matching first (001, 1, task 1, etc.)
+    const idMatch = query.match(/(?:task\s+)?(\d+)/i);
+    if (idMatch) {
+      const targetId = parseInt(idMatch[1]);
+      const taskIndex = activeTasks.findIndex(task => task.id === targetId);
+      if (taskIndex !== -1) {
+        return { index: taskIndex, matchType: 'id' };
+      }
+    }
+    
+    // Fallback to text matching
+    const lowerQuery = query.toLowerCase();
+    const taskIndex = activeTasks.findIndex(task => 
+      task.text.toLowerCase().includes(lowerQuery)
+    );
+    
+    if (taskIndex !== -1) {
+      return { index: taskIndex, matchType: 'text' };
+    }
+    
+    return { index: -1, matchType: 'none' };
+  }
+
   formatDeadline(deadline) {
     if (deadline === 'today') {
       return new Date().toISOString().split('T')[0];

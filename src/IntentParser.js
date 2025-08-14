@@ -21,12 +21,19 @@ Available functions:
 
 Current tasks: ${currentTasks.join(', ') || 'None'}
 
+Task ID Support: Tasks have 3-digit IDs (001, 002, etc). Users can reference tasks by ID ("mark task 001 done") or by text ("mark dentist done").
+
 Examples:
 "Add call John about the meeting" → {"function": "add_task", "params": {"task": "call John about the meeting"}}
 "Mark dentist done" → {"function": "mark_complete", "params": {"taskQuery": "dentist"}}
+"Mark task 001 done" → {"function": "mark_complete", "params": {"taskQuery": "001"}}
+"Mark 5 done" → {"function": "mark_complete", "params": {"taskQuery": "5"}}
 "What needs my attention" → {"function": "list_tasks", "params": {"filter": "urgent"}}
 "Make grocery shopping urgent" → {"function": "set_priority", "params": {"taskQuery": "grocery shopping", "priority": "urgent"}}
+"Make task 3 urgent" → {"function": "set_priority", "params": {"taskQuery": "3", "priority": "urgent"}}
 "Change call John to call John at 3pm" → {"function": "update_task", "params": {"taskQuery": "call John", "newText": "call John at 3pm"}}
+"Update task 002 to buy milk and eggs" → {"function": "update_task", "params": {"taskQuery": "002", "newText": "buy milk and eggs"}}
+"Delete task 4" → {"function": "delete_task", "params": {"taskQuery": "4"}}
 
 IMPORTANT: Return ONLY valid JSON. No explanation or extra text.`;
 
