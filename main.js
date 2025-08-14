@@ -12,11 +12,15 @@ const OpenAI = require('openai').default;
 const VoiceManager = require('./src/VoiceManager');
 
 let TodoFileManager;
+let IntentParser;
 try {
   TodoFileManager = require('./src/TodoFileManager');
   console.log('✅ TodoFileManager loaded successfully');
+  
+  IntentParser = require('./src/IntentParser');
+  console.log('✅ IntentParser loaded successfully');
 } catch (error) {
-  console.error('❌ Failed to load TodoFileManager:', error);
+  console.error('❌ Failed to load modules:', error);
 }
 
 class JarvisApp {
@@ -24,15 +28,11 @@ class JarvisApp {
     this.mainWindow = null;
     this.voiceManager = new VoiceManager();
     this.todoManager = TodoFileManager ? new TodoFileManager() : null;
+    this.intentParser = IntentParser ? new IntentParser(process.env.OPENAI_API_KEY) : null;
     this.localServer = null;
     this.serverPort = 47821;
     this.sessionId = null; // Will be set from React component
     this.bridgeConnected = false;
-    
-    // Initialize OpenAI client for local webhook processing
-    this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
-    });
   }
 
   createWindow() {
@@ -280,81 +280,95 @@ class JarvisApp {
   }
 
   async processVoiceCommand(text) {
-    if (!this.todoManager) {
-      return "Sorry, I'm having trouble accessing your todo file system.";
+    if (!this.todoManager || !this.intentParser) {
+      return "Sorry, I'm having trouble accessing the todo system.";
     }
 
-    const lowerText = text.toLowerCase();
-    
     try {
-      if (lowerText.includes('what needs') || lowerText.includes('attention')) {
-        const priorityTasks = await this.todoManager.getPriorityTasks(3);
-        const stats = await this.todoManager.getStats();
-        
-        if (priorityTasks.length === 0) {
-          return "Great! You have no active tasks. Time to relax!";
-        } else {
-          return `You have ${stats.activeCount} active tasks. Your priorities are: ${priorityTasks.join(', ')}`;
-        }
-        
-      } else if (lowerText.includes('add ')) {
-        const taskMatch = text.match(/add (.+)/i);
-        if (taskMatch) {
-          const newTask = taskMatch[1].trim();
-          const result = await this.todoManager.addTask(newTask);
-          return result.message;
-        } else {
-          return "What would you like me to add to your todo list?";
-        }
-        
-      } else if (lowerText.includes('mark') && (lowerText.includes('done') || lowerText.includes('complete'))) {
-        const taskMatch = text.match(/mark (.+?) (?:done|complete)/i) || text.match(/(?:mark|complete) (.+)/i);
-        if (taskMatch) {
-          const taskQuery = taskMatch[1].trim();
-          const result = await this.todoManager.markTaskDone(taskQuery);
-          return result.success ? result.message : result.message;
-        } else {
-          return "Which task would you like me to mark as complete?";
-        }
-        
-      } else if (lowerText.includes('read') && (lowerText.includes('list') || lowerText.includes('tasks'))) {
-        const tasks = await this.todoManager.getActiveTasks();
-        if (tasks.length === 0) {
-          return "Your todo list is empty. Well done!";
-        } else {
-          return `You have ${tasks.length} tasks: ${tasks.join(', ')}`;
-        }
-        
-      } else {
-        // Use OpenAI for natural language processing
-        const tasks = await this.todoManager.getActiveTasks();
-        
-        if (!this.openai) {
-          return "I can help you with: 'What needs my attention?', 'Add [task]', 'Mark [task] done', or 'Read my list'.";
-        }
+      // Step 1: Parse intent using GPT-4o-mini
+      const currentTasks = await this.todoManager.getActiveTasks();
+      const intent = await this.intentParser.parseIntent(text, currentTasks);
+      
+      console.log('🎯 Processing intent:', intent.function, intent.params);
 
-        const completion = await this.openai.chat.completions.create({
-          model: "gpt-4o-mini",
-          messages: [
-            {
-              role: "system",
-              content: `You are JARVIS, a voice todo assistant. Current active tasks: ${tasks.join(', ') || 'None'}. Respond helpfully and briefly (1-2 sentences).`
-            },
-            {
-              role: "user",
-              content: text
-            }
-          ],
-          temperature: 0.7,
-          max_tokens: 100
-        });
-        
-        return completion.choices[0]?.message?.content || "I didn't understand that. Try asking 'What needs my attention?'";
-      }
+      // Step 2: Execute function based on parsed intent
+      const result = await this.executeTodoFunction(intent);
+      
+      // Step 3: Return simple confirmation or result
+      return result;
       
     } catch (error) {
       console.error('❌ Error processing voice command:', error);
       return "Sorry, I had trouble processing that request. Please try again.";
+    }
+  }
+
+  async executeTodoFunction(intent) {
+    const { function: funcName, params } = intent;
+
+    try {
+      switch (funcName) {
+        case 'add_task':
+          const addResult = await this.todoManager.add_task(
+            params.task,
+            params.priority,
+            params.deadline
+          );
+          return addResult.success ? addResult.message : addResult.message;
+
+        case 'mark_complete':
+          const completeResult = await this.todoManager.mark_complete(params.taskQuery);
+          return completeResult.success ? completeResult.message : completeResult.message;
+
+        case 'update_task':
+          const updateResult = await this.todoManager.update_task(params.taskQuery, params.newText);
+          return updateResult.success ? updateResult.message : updateResult.message;
+
+        case 'delete_task':
+          const deleteResult = await this.todoManager.delete_task(params.taskQuery);
+          return deleteResult.success ? deleteResult.message : deleteResult.message;
+
+        case 'add_deadline':
+          const deadlineResult = await this.todoManager.add_deadline(params.taskQuery, params.deadline);
+          return deadlineResult.success ? deadlineResult.message : deadlineResult.message;
+
+        case 'set_priority':
+          const priorityResult = await this.todoManager.set_priority(params.taskQuery, params.priority);
+          return priorityResult.success ? priorityResult.message : priorityResult.message;
+
+        case 'list_tasks':
+          const listResult = await this.todoManager.list_tasks(params.filter);
+          if (listResult.success && listResult.tasks.length > 0) {
+            const taskList = listResult.tasks.slice(0, 5).join(', ');
+            return `Your tasks: ${taskList}`;
+          } else if (listResult.success && listResult.tasks.length === 0) {
+            return params.filter === 'urgent' ? 'No urgent tasks' : 'No tasks found';
+          } else {
+            return 'Failed to list tasks';
+          }
+
+        case 'search_tasks':
+          const searchResult = await this.todoManager.search_tasks(params.query);
+          if (searchResult.success && searchResult.tasks.length > 0) {
+            const taskList = searchResult.tasks.slice(0, 3).join(', ');
+            return `Found: ${taskList}`;
+          } else if (searchResult.success && searchResult.tasks.length === 0) {
+            return `No tasks found matching "${params.query}"`;
+          } else {
+            return 'Failed to search tasks';
+          }
+
+        case 'error':
+          return params.message || "I didn't understand that. Please try again.";
+
+        default:
+          console.log('🤷 Unknown function:', funcName);
+          return "I'm not sure how to help with that. Try asking 'What needs my attention?'";
+      }
+
+    } catch (error) {
+      console.error('❌ Error executing function:', funcName, error);
+      return "Sorry, something went wrong. Please try again.";
     }
   }
 
