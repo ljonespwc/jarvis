@@ -131,9 +131,9 @@ export default async function handler(req, res) {
                           responseText === 'Removed';
 
     if (isConfirmation) {
-      // Send minimal period for confirmations
-      console.log('🔇 Using period for confirmation');
-      res.write(`data: ${JSON.stringify({ type: 'response.tts', content: '.', turn_id })}\n\n`);
+      // Send very brief confirmation
+      console.log('🔇 Using brief confirmation');
+      res.write(`data: ${JSON.stringify({ type: 'response.tts', content: 'ok', turn_id })}\n\n`);
     } else {
       // Normal TTS response for non-confirmations
       res.write(`data: ${JSON.stringify({ type: 'response.tts', content: responseText, turn_id })}\n\n`);
