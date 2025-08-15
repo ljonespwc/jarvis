@@ -45,6 +45,7 @@ class JarvisApp {
       height: 600,
       minWidth: 350,
       minHeight: 400,
+      maxHeight: 1000, // Reasonable maximum height
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
@@ -179,11 +180,38 @@ class JarvisApp {
         completed: stats.completedCount
       };
       
+      // Update window height based on active task count
+      this.adjustWindowHeight(stats.activeCount);
+      
       if (this.tray) {
         this.updateTrayMenu();
       }
     } catch (error) {
       console.error('❌ Failed to update task stats:', error);
+    }
+  }
+
+  adjustWindowHeight(activeTaskCount) {
+    if (!this.mainWindow) return;
+    
+    // Calculate optimal height
+    const baseHeight = 320; // Header + voice cards + document header
+    const taskHeight = 45;  // Height per task line (including padding)
+    const padding = 40;     // Bottom padding
+    
+    const calculatedHeight = baseHeight + (activeTaskCount * taskHeight) + padding;
+    
+    // Apply reasonable bounds
+    const minHeight = 400;
+    const maxHeight = 1000;
+    const optimalHeight = Math.min(Math.max(calculatedHeight, minHeight), maxHeight);
+    
+    // Get current size to avoid unnecessary resize
+    const [currentWidth, currentHeight] = this.mainWindow.getSize();
+    
+    if (Math.abs(currentHeight - optimalHeight) > 10) { // Only resize if significant difference
+      console.log(`📐 Adjusting window height: ${currentHeight} → ${optimalHeight} (${activeTaskCount} tasks)`);
+      this.mainWindow.setSize(currentWidth, optimalHeight, true); // animate: true
     }
   }
 
