@@ -139,6 +139,7 @@ class JarvisApp {
     // Set up IPC for sessionId from renderer
     ipcMain.on('set-session-id', (event, sessionId) => {
       console.log('📡 Received sessionId from renderer:', sessionId);
+      console.log('📡 Will now connect to bridge...');
       this.sessionId = sessionId;
       this.connectToBridge();
     });

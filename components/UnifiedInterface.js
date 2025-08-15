@@ -123,8 +123,13 @@ export default function UnifiedInterface() {
       setStatus('');
       
       // Send sessionId to main process for bridge connection
+      console.log('📡 About to send sessionId to main process:', sessionId);
       if (window.electronAPI) {
+        console.log('📡 electronAPI is available, calling setSessionId');
         window.electronAPI.setSessionId(sessionId);
+        console.log('📡 setSessionId called successfully');
+      } else {
+        console.error('❌ electronAPI is NOT available!');
       }
     },
     onDisconnect: () => {
