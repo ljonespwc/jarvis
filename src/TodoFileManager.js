@@ -251,7 +251,7 @@ class TodoFileManager {
     const urgencyKeywords = ['urgent', 'asap', 'today', 'important', 'critical'];
     
     const prioritized = activeTasks.map(task => {
-      const lowerTask = task.toLowerCase();
+      const lowerTask = task.text.toLowerCase();
       const urgencyScore = urgencyKeywords.reduce((score, keyword) => {
         return score + (lowerTask.includes(keyword) ? 1 : 0);
       }, 0);
@@ -469,12 +469,12 @@ class TodoFileManager {
       
       if (filter === 'urgent') {
         filteredTasks = activeTasks.filter(task => 
-          task.toLowerCase().includes('[urgent]')
+          task.text.toLowerCase().includes('[urgent]')
         );
       } else if (filter === 'today') {
         const today = new Date().toISOString().split('T')[0];
         filteredTasks = activeTasks.filter(task => 
-          task.includes(`due: ${today}`) || task.includes('due: today')
+          task.text.includes(`due: ${today}`) || task.text.includes('due: today')
         );
       }
 
@@ -495,7 +495,7 @@ class TodoFileManager {
       const searchQuery = query.toLowerCase();
       
       const matchingTasks = activeTasks.filter(task => 
-        task.toLowerCase().includes(searchQuery)
+        task.text.toLowerCase().includes(searchQuery)
       );
 
       return { 
