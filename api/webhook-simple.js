@@ -125,9 +125,21 @@ export default async function handler(req, res) {
 
     console.log('🗣️ JARVIS response:', responseText.substring(0, 80) + (responseText.length > 80 ? '...' : ''));
 
-    // Send SSE response with proper turn_id if available
-    res.write(`data: ${JSON.stringify({ type: 'response.tts', content: responseText, turn_id })}\n\n`);
-    res.write(`data: ${JSON.stringify({ type: 'response.end', turn_id })}\n\n`);
+    // Check if this is a confirmation response that should skip TTS
+    const isConfirmation = responseText === '.' || 
+                          responseText === 'Done' || 
+                          responseText === 'Updated' || 
+                          responseText === 'Removed';
+
+    if (isConfirmation) {
+      // Skip TTS for confirmations - just end the turn silently
+      console.log('🔇 Skipping TTS for confirmation response');
+      res.write(`data: ${JSON.stringify({ type: 'response.end', turn_id })}\n\n`);
+    } else {
+      // Normal TTS response for non-confirmations
+      res.write(`data: ${JSON.stringify({ type: 'response.tts', content: responseText, turn_id })}\n\n`);
+      res.write(`data: ${JSON.stringify({ type: 'response.end', turn_id })}\n\n`);
+    }
     res.end();
 
   } catch (error) {
