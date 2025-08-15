@@ -8,6 +8,19 @@ export default function VoiceInterfaceClient() {
   
   // TTS is now handled by Layercode/Cartesia through the webhook system
   
+  // Test electronAPI availability on component mount
+  useEffect(() => {
+    console.log('🔍 Testing electronAPI availability...')
+    if (window.electronAPI) {
+      console.log('✅ electronAPI is available:', Object.keys(window.electronAPI))
+      // Test the setSessionId function
+      window.electronAPI.setSessionId('test-session-' + Date.now())
+      console.log('📡 Test sessionId sent to main process')
+    } else {
+      console.error('❌ electronAPI is NOT available - this is the problem!')
+    }
+  }, [])
+  
   // Console suppression (preserve from vanilla JS version)
   useEffect(() => {
     const originalWarn = console.warn
