@@ -63,63 +63,11 @@ class JarvisApp {
     // Load Next.js static export
     this.mainWindow.loadFile('out/index.html');
 
-    // Enable DevTools for debugging - should be stable with React SDK
-    this.mainWindow.webContents.openDevTools({ mode: 'detach' });
+    // DevTools disabled in production
+    // this.mainWindow.webContents.openDevTools({ mode: 'detach' });
 
     this.mainWindow.on('closed', () => {
       this.mainWindow = null;
-    });
-  }
-
-  setupIPC() {
-    ipcMain.handle('start-listening', async () => {
-      try {
-        return await this.voiceManager.startListening();
-      } catch (error) {
-        console.error('Error starting voice listener:', error);
-        return { error: error.message };
-      }
-    });
-
-    ipcMain.handle('stop-listening', async () => {
-      try {
-        return await this.voiceManager.stopListening();
-      } catch (error) {
-        console.error('Error stopping voice listener:', error);
-        return { error: error.message };
-      }
-    });
-
-    ipcMain.handle('get-voice-config', async () => {
-      try {
-        return this.voiceManager.getConnectionInfo();
-      } catch (error) {
-        console.error('Error getting voice config:', error);
-        return { error: error.message };
-      }
-    });
-
-    // Todo viewer IPC handlers
-    ipcMain.handle('get-tasks', async () => {
-      try {
-        if (!this.todoManager) {
-          return { success: false, error: 'Todo manager not available' };
-        }
-
-        const allTasks = await this.todoManager.getAllTasks();
-        const stats = await this.todoManager.getStats();
-
-        return {
-          success: true,
-          data: {
-            tasks: allTasks,
-            stats: stats
-          }
-        };
-      } catch (error) {
-        console.error('Error getting tasks:', error);
-        return { success: false, error: error.message };
-      }
     });
   }
 
@@ -295,13 +243,7 @@ class JarvisApp {
       try {
         const { systemPreferences } = require('electron');
         
-        // Check if we can show notifications - this will trigger permission request if needed
-        if (!systemPreferences.isSupported('doNotDisturb')) {
-          console.log('⚠️ Do Not Disturb settings not accessible');
-        }
-        
-        // The first notification will automatically trigger permission request on macOS
-        console.log('🔒 macOS will request notification permission if needed');
+        // macOS will automatically request notification permissions on first use
       } catch (error) {
         console.log('⚠️ Could not check system preferences:', error.message);
       }
@@ -567,14 +509,12 @@ class JarvisApp {
             params.priority,
             params.deadline
           );
-          console.log('🔍 add_task result:', result);
           if (result.success) {
             notificationTitle = 'Task Added';
             const priorityText = params.priority === 'urgent' ? '🔥 ' : params.priority === 'low' ? '📋 ' : '';
             const deadlineText = params.deadline ? ` (due: ${params.deadline})` : '';
             notificationBody = `${priorityText}${params.task}${deadlineText}`;
-            console.log('📢 About to show notification:', notificationTitle, notificationBody);
-            await this.showNotification(notificationTitle, notificationBody);
+              await this.showNotification(notificationTitle, notificationBody);
             await this.updateTaskStats();
             this.emitTaskUpdate();
           }
@@ -582,12 +522,10 @@ class JarvisApp {
 
         case 'mark_complete':
           result = await this.todoManager.mark_complete(params.taskQuery);
-          console.log('🔍 mark_complete result:', result);
           if (result.success) {
             notificationTitle = 'Task Completed';
             notificationBody = `✅ Marked "${params.taskQuery}" as done`;
-            console.log('📢 About to show notification:', notificationTitle, notificationBody);
-            
+              
             await this.showNotification(notificationTitle, notificationBody);
             await this.updateTaskStats();
             this.emitTaskUpdate();

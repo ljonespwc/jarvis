@@ -41,7 +41,7 @@ export default async function handler(req, res) {
       .digest('hex');
     
     if (`sha256=${expectedSignature}` !== signature) {
-      console.log('⚠️ Signature mismatch - continuing for development');
+      console.error('⚠️ Webhook signature verification failed');
     }
   }
 
@@ -51,8 +51,10 @@ export default async function handler(req, res) {
     // Extract session ID for bridge communication
     const sessionId = session_id || turn_id || 'default-session';
     
-    // Debug: log ALL webhook calls
-    console.log('🎤 WEBHOOK DEBUG:', { text, type, sessionId, body: req.body });
+    // Log meaningful webhook calls
+    if (text && text.trim()) {
+      console.log('🎤 Voice input:', text.substring(0, 50) + (text.length > 50 ? '...' : ''));
+    }
 
     if (type === 'session.start') {
       const response = "How can I help?";
@@ -73,7 +75,6 @@ export default async function handler(req, res) {
     // Bridge communication - send command to user's local app
     async function sendCommandToBridge(sessionId, text) {
       try {
-        console.log('🌉 Sending command to bridge for session:', sessionId);
         
         const response = await fetch(`https://jarvis-vert-eta.vercel.app/api/websocket?sessionId=${sessionId}`, {
           method: 'POST',
@@ -92,7 +93,6 @@ export default async function handler(req, res) {
         const result = await response.json();
         
         if (result.success) {
-          console.log('✅ Received response from local app via bridge');
           return result.data;
         } else {
           throw new Error(result.error || 'Bridge communication error');
@@ -108,7 +108,6 @@ export default async function handler(req, res) {
     let responseText = '';
 
     try {
-      console.log('🌉 Processing voice command via bridge...', { sessionId, text });
       responseText = await sendCommandToBridge(sessionId, text);
       
       if (!responseText || responseText === 'undefined') {

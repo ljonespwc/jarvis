@@ -8,18 +8,6 @@ export default function VoiceInterfaceClient() {
   
   // TTS is now handled by Layercode/Cartesia through the webhook system
   
-  // Test electronAPI availability on component mount
-  useEffect(() => {
-    console.log('🔍 Testing electronAPI availability...')
-    if (window.electronAPI) {
-      console.log('✅ electronAPI is available:', Object.keys(window.electronAPI))
-      // Test the setSessionId function
-      window.electronAPI.setSessionId('test-session-' + Date.now())
-      console.log('📡 Test sessionId sent to main process')
-    } else {
-      console.error('❌ electronAPI is NOT available - this is the problem!')
-    }
-  }, [])
   
   // Console suppression (preserve from vanilla JS version)
   useEffect(() => {
@@ -92,47 +80,27 @@ export default function VoiceInterfaceClient() {
       sessionId: 'jarvis-' + Date.now()
     },
     onConnect: ({ sessionId }) => {
-      console.log('✅ Connected to Layercode:', sessionId)
-      console.log('🔍 SDK Result available functions:', Object.keys(sdkResult))
       setStatus('🎤 JARVIS is listening... Speak naturally')
       
       // Send sessionId to main process for bridge connection
       if (window.electronAPI) {
-        console.log('📡 Sending sessionId to main process for bridge:', sessionId)
         window.electronAPI.setSessionId(sessionId)
-      } else {
-        console.error('❌ electronAPI not available - bridge connection will fail')
       }
-      
-      // No intro message - let Layercode handle session.start
-      console.log('✅ Ready for voice commands - intro handled by Layercode')
     },
     onDisconnect: () => {
-      console.log('🔌 Disconnected from Layercode')
       setStatus('Voice processing disconnected')
     },
     onError: (error) => {
-      console.error('❌ Layercode error:', error)
       setError('Voice error: ' + error.message)
       setTimeout(() => setError(''), 5000)
     },
     onTranscript: async (transcript) => {
-      console.log('📝 Voice input:', transcript.substring(0, 50))
       setStatus(`You said: "${transcript}"`)
-      
-      // Let Layercode handle the transcript through the webhook system
-      // This will go through the bridge to the local app where notifications work
-      console.log('🌐 Transcript will be processed via Layercode webhook + bridge system')
     },
     onTurnStarted: () => {
-      console.log('🎤 Turn started - user speaking')
       setStatus('🎤 Listening to you...')
     },
     onTurnFinished: async (data) => {
-      console.log('🎤 Turn finished - will process via webhook + bridge', data)
-      
-      // Layercode will handle the processing through webhook -> bridge -> local app
-      // where notifications are properly handled
       setStatus('🤖 JARVIS is processing...')
     }
   })
