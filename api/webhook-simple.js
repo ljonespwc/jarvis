@@ -110,7 +110,7 @@ export default async function handler(req, res) {
     let responseText = '';
 
     try {
-      console.log('🌉 Processing voice command via bridge...');
+      console.log('🌉 Processing voice command via bridge...', { sessionId, text });
       responseText = await sendCommandToBridge(sessionId, text);
       
     } catch (error) {
