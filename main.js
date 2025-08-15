@@ -231,11 +231,13 @@ class JarvisApp {
   }
 
   showNotification(title, body, actions = []) {
+    console.log('📢 Attempting to show notification:', title, body);
     if (!Notification.isSupported()) {
       console.log('⚠️ Notifications not supported on this system');
       return;
     }
 
+    console.log('✅ Notifications supported, creating notification');
     const notification = new Notification({
       title: `JARVIS: ${title}`,
       body: body,
@@ -244,6 +246,7 @@ class JarvisApp {
     });
 
     notification.show();
+    console.log('📱 Notification shown');
     
     // Auto-close after 4 seconds
     setTimeout(() => {

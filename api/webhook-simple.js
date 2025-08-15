@@ -125,19 +125,8 @@ export default async function handler(req, res) {
 
     console.log('🗣️ JARVIS response:', responseText.substring(0, 80) + (responseText.length > 80 ? '...' : ''));
 
-    // Check if this is a confirmation response - use minimal audio
-    const isConfirmation = responseText === 'Done' || 
-                          responseText === 'Updated' || 
-                          responseText === 'Removed';
-
-    if (isConfirmation) {
-      // Send very brief confirmation
-      console.log('🔇 Using brief confirmation');
-      res.write(`data: ${JSON.stringify({ type: 'response.tts', content: 'ok', turn_id })}\n\n`);
-    } else {
-      // Normal TTS response for non-confirmations
-      res.write(`data: ${JSON.stringify({ type: 'response.tts', content: responseText, turn_id })}\n\n`);
-    }
+    // Send normal TTS response 
+    res.write(`data: ${JSON.stringify({ type: 'response.tts', content: responseText, turn_id })}\n\n`);
     res.write(`data: ${JSON.stringify({ type: 'response.end', turn_id })}\n\n`);
     res.end();
 
