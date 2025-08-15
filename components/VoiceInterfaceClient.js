@@ -6,32 +6,7 @@ export default function VoiceInterfaceClient() {
   const [error, setError] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
   
-  // Local TTS using Web Speech API
-  const speakResponse = (text) => {
-    if ('speechSynthesis' in window) {
-      const utterance = new SpeechSynthesisUtterance(text)
-      utterance.rate = 0.9
-      utterance.pitch = 1.0
-      utterance.volume = 1.0
-      
-      // Use a more natural voice if available
-      const voices = speechSynthesis.getVoices()
-      const preferredVoice = voices.find(voice => 
-        voice.name.includes('Samantha') || 
-        voice.name.includes('Alex') ||
-        voice.name.includes('Daniel') ||
-        voice.default
-      )
-      if (preferredVoice) {
-        utterance.voice = preferredVoice
-      }
-      
-      console.log('🗣️ Speaking with Web Speech API:', text.substring(0, 50))
-      speechSynthesis.speak(utterance)
-    } else {
-      console.log('❌ Web Speech API not available')
-    }
-  }
+  // TTS is now handled by Layercode/Cartesia through the webhook system
   
   // Console suppression (preserve from vanilla JS version)
   useEffect(() => {
@@ -93,44 +68,8 @@ export default function VoiceInterfaceClient() {
     }
   }, [])
 
-  // Local voice command processing
-  const processVoiceCommand = async (transcript) => {
-    if (isProcessing) return
-    
-    setIsProcessing(true)
-    setStatus('⏳ JARVIS is thinking...')
-    
-    try {
-      // Call local server for todo operations (using existing local server)
-      const response = await fetch('http://localhost:47821/todo', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          action: 'process_command', 
-          data: { text: transcript } 
-        })
-      })
-      
-      if (!response.ok) {
-        throw new Error('Failed to process command locally')
-      }
-      
-      const result = await response.json()
-      
-      if (result.success) {
-        // Use Layercode SDK to speak the response
-        return result.data
-      } else {
-        throw new Error(result.error || 'Unknown error')
-      }
-      
-    } catch (error) {
-      console.error('❌ Error processing voice command:', error)
-      return "Sorry, I had trouble processing that request. Please try again."
-    } finally {
-      setIsProcessing(false)
-    }
-  }
+  // Note: Voice commands are now processed via Layercode webhook -> bridge -> local app
+  // This ensures notifications and file operations work properly
 
   // Layercode React SDK integration - LOCAL PROCESSING MODE
   const sdkResult = useLayercodePipeline({
@@ -146,7 +85,10 @@ export default function VoiceInterfaceClient() {
       
       // Send sessionId to main process for bridge connection
       if (window.electronAPI) {
+        console.log('📡 Sending sessionId to main process for bridge:', sessionId)
         window.electronAPI.setSessionId(sessionId)
+      } else {
+        console.error('❌ electronAPI not available - bridge connection will fail')
       }
       
       // No intro message - let Layercode handle session.start
@@ -165,48 +107,20 @@ export default function VoiceInterfaceClient() {
       console.log('📝 Voice input:', transcript.substring(0, 50))
       setStatus(`You said: "${transcript}"`)
       
-      // Process the command locally and speak the response
-      const response = await processVoiceCommand(transcript)
-      
-      if (speak && response) {
-        console.log('🗣️ JARVIS response:', response.substring(0, 50))
-        speak(response)
-        setStatus(`🤖 JARVIS: "${response.substring(0, 50)}..."`)
-        
-        // Auto-reset to listening after response
-        setTimeout(() => {
-          setStatus('🎤 JARVIS is listening... Speak naturally')
-        }, 4000)
-      }
+      // Let Layercode handle the transcript through the webhook system
+      // This will go through the bridge to the local app where notifications work
+      console.log('🌐 Transcript will be processed via Layercode webhook + bridge system')
     },
     onTurnStarted: () => {
       console.log('🎤 Turn started - user speaking')
       setStatus('🎤 Listening to you...')
     },
     onTurnFinished: async (data) => {
-      console.log('🎤 Turn finished - processing locally', data)
+      console.log('🎤 Turn finished - will process via webhook + bridge', data)
       
-      // Check if we have transcript data in the turn finished event
-      if (data?.transcript) {
-        console.log('📝 Voice input from turn finished:', data.transcript.substring(0, 50))
-        setStatus(`You said: "${data.transcript}"`)
-        
-        // Process the command locally and speak the response
-        const response = await processVoiceCommand(data.transcript)
-        
-        if (response) {
-          console.log('🗣️ JARVIS response:', response.substring(0, 50))
-          speakResponse(response)
-          setStatus(`🤖 JARVIS: "${response.substring(0, 50)}..."`)
-          
-          // Auto-reset to listening after response
-          setTimeout(() => {
-            setStatus('🎤 JARVIS is listening... Speak naturally')
-          }, 4000)
-        } else {
-          console.log('❌ No response available')
-        }
-      }
+      // Layercode will handle the processing through webhook -> bridge -> local app
+      // where notifications are properly handled
+      setStatus('🤖 JARVIS is processing...')
     }
   })
 
