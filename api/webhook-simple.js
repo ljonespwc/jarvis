@@ -118,11 +118,8 @@ export default async function handler(req, res) {
     } catch (error) {
       console.error('❌ Error processing command via bridge:', error);
       
-      if (error.message.includes('Bridge error') || error.message.includes('timeout') || error.message.includes('Empty response')) {
-        responseText = "Please make sure JARVIS is running on your computer to access your todo file.";
-      } else {
-        responseText = "Sorry, I had trouble processing your request. Please try again.";
-      }
+      // FORCE bridge connection - don't process locally
+      responseText = "Bridge connection failed. Please make sure JARVIS desktop app is running and connected. Error: " + error.message;
     }
 
     console.log('🗣️ JARVIS response:', responseText.substring(0, 80) + (responseText.length > 80 ? '...' : ''));
