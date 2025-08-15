@@ -51,10 +51,8 @@ export default async function handler(req, res) {
     // Extract session ID for bridge communication
     const sessionId = session_id || turn_id || 'default-session';
     
-    // Only log meaningful webhook calls, not internal Layercode messages
-    if (type === 'session.start' || type === 'message' || text) {
-      console.log('🎤 Voice command:', { text: text?.substring(0, 50), type, sessionId });
-    }
+    // Debug: log ALL webhook calls
+    console.log('🎤 WEBHOOK DEBUG:', { text, type, sessionId, body: req.body });
 
     if (type === 'session.start') {
       const response = "How can I help?";
