@@ -237,23 +237,32 @@ class JarvisApp {
       return;
     }
 
-    console.log('✅ Notifications supported, creating notification');
-    const notification = new Notification({
-      title: `JARVIS: ${title}`,
-      body: body,
-      silent: false,
-      actions: actions
-    });
+    try {
+      console.log('✅ Notifications supported, creating notification');
+      const notification = new Notification({
+        title: `JARVIS: ${title}`,
+        body: body,
+        silent: false,
+        actions: actions
+      });
 
-    notification.show();
-    console.log('📱 Notification shown');
-    
-    // Auto-close after 4 seconds
-    setTimeout(() => {
-      notification.close();
-    }, 4000);
+      notification.show();
+      console.log('📱 Notification shown successfully');
+      
+      // Auto-close after 4 seconds
+      setTimeout(() => {
+        try {
+          notification.close();
+        } catch (error) {
+          console.log('⚠️ Error closing notification:', error.message);
+        }
+      }, 4000);
 
-    return notification;
+      return notification;
+    } catch (error) {
+      console.error('❌ Failed to create or show notification:', error);
+      return null;
+    }
   }
 
   async startLocalServer() {
@@ -464,11 +473,13 @@ class JarvisApp {
             params.priority,
             params.deadline
           );
+          console.log('🔍 add_task result:', result);
           if (result.success) {
             notificationTitle = 'Task Added';
             const priorityText = params.priority === 'urgent' ? '🔥 ' : params.priority === 'low' ? '📋 ' : '';
             const deadlineText = params.deadline ? ` (due: ${params.deadline})` : '';
             notificationBody = `${priorityText}${params.task}${deadlineText}`;
+            console.log('📢 About to show notification:', notificationTitle, notificationBody);
             this.showNotification(notificationTitle, notificationBody);
             await this.updateTaskStats();
             this.emitTaskUpdate();
@@ -477,9 +488,11 @@ class JarvisApp {
 
         case 'mark_complete':
           result = await this.todoManager.mark_complete(params.taskQuery);
+          console.log('🔍 mark_complete result:', result);
           if (result.success) {
             notificationTitle = 'Task Completed';
             notificationBody = `✅ Marked "${params.taskQuery}" as done`;
+            console.log('📢 About to show notification:', notificationTitle, notificationBody);
             this.showNotification(notificationTitle, notificationBody);
             await this.updateTaskStats();
             this.emitTaskUpdate();
