@@ -138,12 +138,62 @@ class JarvisApp {
   }
 
   setupIPC() {
-    // Set up IPC for sessionId from renderer - MUST be before window creation
+    // Set up ALL IPC handlers - MUST be before window creation
     ipcMain.on('set-session-id', (event, sessionId) => {
       console.log('📡 Received sessionId from renderer:', sessionId);
       console.log('📡 Will now connect to bridge...');
       this.sessionId = sessionId;
       this.connectToBridge();
+    });
+
+    ipcMain.handle('start-listening', async () => {
+      try {
+        return await this.voiceManager.startListening();
+      } catch (error) {
+        console.error('Error starting voice listener:', error);
+        return { error: error.message };
+      }
+    });
+
+    ipcMain.handle('stop-listening', async () => {
+      try {
+        return await this.voiceManager.stopListening();
+      } catch (error) {
+        console.error('Error stopping voice listener:', error);
+        return { error: error.message };
+      }
+    });
+
+    ipcMain.handle('get-voice-config', async () => {
+      try {
+        return this.voiceManager.getConnectionInfo();
+      } catch (error) {
+        console.error('Error getting voice config:', error);
+        return { error: error.message };
+      }
+    });
+
+    // Todo viewer IPC handlers
+    ipcMain.handle('get-tasks', async () => {
+      try {
+        if (!this.todoManager) {
+          return { success: false, error: 'Todo manager not available' };
+        }
+
+        const allTasks = await this.todoManager.getAllTasks();
+        const stats = await this.todoManager.getStats();
+
+        return {
+          success: true,
+          data: {
+            tasks: allTasks,
+            stats: stats
+          }
+        };
+      } catch (error) {
+        console.error('Error getting tasks:', error);
+        return { success: false, error: error.message };
+      }
     });
   }
 
@@ -242,6 +292,7 @@ class JarvisApp {
 
     try {
       console.log('✅ Notifications supported, creating notification');
+      
       const notification = new Notification({
         title: `JARVIS: ${title}`,
         body: body,
@@ -252,14 +303,26 @@ class JarvisApp {
       notification.show();
       console.log('📱 Notification shown successfully');
       
-      // Auto-close after 4 seconds
+      notification.on('show', () => {
+        console.log('🎉 Notification displayed');
+      });
+      
+      notification.on('click', () => {
+        console.log('👆 Notification was clicked');
+      });
+      
+      notification.on('close', () => {
+        console.log('❌ Notification was closed');
+      });
+      
+      // Auto-close after 8 seconds instead of 4
       setTimeout(() => {
         try {
           notification.close();
         } catch (error) {
           console.log('⚠️ Error closing notification:', error.message);
         }
-      }, 4000);
+      }, 8000);
 
       return notification;
     } catch (error) {
