@@ -57,7 +57,7 @@ export default async function handler(req, res) {
     }
 
     if (type === 'session.start') {
-      const response = "Hello! I'm JARVIS, your voice todo assistant. What can I help you with?";
+      const response = "How can I help?";
       res.write(`data: ${JSON.stringify({ type: 'response.tts', content: response, turn_id })}\n\n`);
       res.write(`data: ${JSON.stringify({ type: 'response.end', turn_id })}\n\n`);
       res.end();

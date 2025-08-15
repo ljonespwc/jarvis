@@ -1,0 +1,443 @@
+/* UnifiedInterface.module.css - TextEdit-Inspired Design */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #f5f5f5;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif;
+  overflow: hidden;
+}
+
+/* Header Section */
+.header {
+  background: #ffffff;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid #e5e5e5;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1d1d1d;
+  margin: 0 0 4px 0;
+  letter-spacing: -0.5px;
+}
+
+.subtitle {
+  font-size: 15px;
+  color: #666;
+  margin: 0 0 12px 0;
+  font-weight: 400;
+}
+
+.statusBar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.status {
+  font-size: 14px;
+  color: #333;
+  font-weight: 500;
+}
+
+.error {
+  font-size: 14px;
+  color: #d32f2f;
+  font-weight: 500;
+}
+
+/* Voice Cards Section */
+.voiceCards {
+  display: flex;
+  gap: 16px;
+  padding: 16px 24px;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.speakerCard {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.speakerCard.speaking {
+  background: #e3f2fd;
+  border-color: #2196f3;
+  box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+}
+
+.speakerInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 80px;
+}
+
+.speakerEmoji {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.speakerName {
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+  line-height: 1;
+}
+
+.speakerStatus {
+  font-size: 11px;
+  color: #666;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.amplitudeBars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 32px;
+  flex: 1;
+  justify-content: center;
+}
+
+.bar {
+  width: 3px;
+  background: #2196f3;
+  border-radius: 2px;
+  min-height: 4px;
+  transition: height 0.1s ease;
+  animation: pulse 0.5s ease-in-out infinite alternate;
+}
+
+.speakerCard.speaking .bar {
+  background: #1976d2;
+  animation: pulse 0.3s ease-in-out infinite alternate;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.6; }
+  100% { opacity: 1; }
+}
+
+/* Todo Document Section - TextEdit Style */
+.todoDocument {
+  flex: 1;
+  margin: 16px 24px 24px;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid #d1d5db;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.documentHeader {
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid #f3f4f6;
+  background: #fafbfc;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.documentTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0;
+}
+
+.documentStats {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+}
+
+.activeCount, .completedCount {
+  background: none;
+  border: none;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.activeCount {
+  color: #059669;
+}
+
+.activeCount:hover {
+  background: #dcfce7;
+}
+
+.completedCount {
+  color: #6b7280;
+}
+
+.completedCount:hover {
+  background: #f3f4f6;
+}
+
+.activeFilter {
+  background: #e0f2fe !important;
+  color: #0277bd !important;
+}
+
+.documentContent {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  line-height: 1.6;
+  font-size: 15px;
+}
+
+/* Task List Styling */
+.tasksList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.taskLine {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid #f3f4f6;
+  transition: background-color 0.2s ease;
+}
+
+.taskLine:last-child {
+  border-bottom: none;
+}
+
+.taskLine:hover {
+  background-color: #f9fafb;
+  margin: 0 -12px;
+  padding: 8px 12px;
+  border-radius: 4px;
+}
+
+.taskId {
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', monospace;
+  font-size: 13px;
+  font-weight: 500;
+  color: #6b7280;
+  min-width: 40px;
+  background: #f3f4f6;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-align: center;
+  margin-top: 2px;
+}
+
+.taskContent {
+  flex: 1;
+  color: #1f2937;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.deadline {
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+  margin-top: 2px;
+  white-space: nowrap;
+}
+
+.deadline.dueToday {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+}
+
+.deadline.overdue {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+}
+
+.deadline.upcoming {
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #93c5fd;
+}
+
+/* Priority Styling */
+.taskLine.urgent {
+  border-left: 3px solid #dc2626;
+  padding-left: 16px;
+  margin-left: -20px;
+}
+
+.taskLine.urgent .taskContent {
+  color: #dc2626;
+  font-weight: 500;
+}
+
+.taskLine.low {
+  opacity: 0.7;
+}
+
+.taskLine.low .taskContent {
+  color: #6b7280;
+}
+
+/* State Components */
+.loadingState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  color: #6b7280;
+  gap: 16px;
+}
+
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid #f3f4f6;
+  border-top: 2px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.errorState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 40px 20px;
+  text-align: center;
+  color: #dc2626;
+}
+
+.retryButton {
+  background: #3b82f6;
+  border: none;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+.retryButton:hover {
+  background: #2563eb;
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  color: #6b7280;
+}
+
+.emptyState p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+/* Smooth transitions for real-time updates */
+.taskLine {
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 480px) {
+  .header {
+    padding: 16px 20px 12px;
+  }
+  
+  .title {
+    font-size: 20px;
+  }
+  
+  .voiceCards {
+    padding: 12px 20px;
+    gap: 12px;
+  }
+  
+  .todoDocument {
+    margin: 12px 20px 20px;
+  }
+  
+  .documentContent {
+    padding: 16px;
+  }
+  
+  .taskLine {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  .taskId {
+    min-width: 35px;
+  }
+}
+
+/* Typography refinements */
+.taskContent {
+  font-feature-settings: "liga" 1, "kern" 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Focus and accessibility */
+.retryButton:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* High contrast for better readability */
+@media (prefers-contrast: high) {
+  .taskContent {
+    color: #000000;
+  }
+  
+  .taskId {
+    background: #e5e5e5;
+    color: #000000;
+  }
+}

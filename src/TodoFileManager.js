@@ -237,7 +237,11 @@ class TodoFileManager {
 
   async getActiveTasks() {
     const { activeTasks } = await this.readTodoFile();
-    return activeTasks.map(task => task.text);
+    return activeTasks.map(task => ({
+      id: task.id,
+      text: task.text,
+      fullLine: `${this.formatTaskId(task.id)} ${task.text}`
+    }));
   }
 
   async getPriorityTasks(count = 5) {

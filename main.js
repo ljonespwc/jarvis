@@ -379,7 +379,7 @@ class JarvisApp {
 
           // Handle session start
           if (type === 'session.start') {
-            const response = 'Hello! I\'m JARVIS, your voice todo assistant. What can I help you with?';
+            const response = 'How can I help?';
             res.write(`data: ${JSON.stringify({ type: 'response.tts', content: response })}\n\n`);
             res.write(`data: ${JSON.stringify({ type: 'response.end' })}\n\n`);
             res.end();
