@@ -240,8 +240,41 @@ class TodoFileManager {
     return activeTasks.map(task => ({
       id: task.id,
       text: task.text,
-      fullLine: `${this.formatTaskId(task.id)} ${task.text}`
+      fullLine: `${this.formatTaskId(task.id)} ${task.text}`,
+      status: 'active'
     }));
+  }
+
+  async getCompletedTasks() {
+    const { doneTasks } = await this.readTodoFile();
+    return doneTasks.map((task, index) => ({
+      id: index + 1, // Simple ID for completed tasks
+      text: task.text,
+      fullLine: `[DONE] ${task.completedDate} ${task.text}`,
+      status: 'completed',
+      completedDate: task.completedDate
+    }));
+  }
+
+  async getAllTasks() {
+    const { activeTasks, doneTasks } = await this.readTodoFile();
+    
+    const formattedActiveTasks = activeTasks.map(task => ({
+      id: task.id,
+      text: task.text,
+      fullLine: `${this.formatTaskId(task.id)} ${task.text}`,
+      status: 'active'
+    }));
+
+    const formattedCompletedTasks = doneTasks.map((task, index) => ({
+      id: `done-${index}`, // Different ID format for completed tasks
+      text: task.text,
+      fullLine: `[DONE] ${task.completedDate} ${task.text}`,
+      status: 'completed',
+      completedDate: task.completedDate
+    }));
+    
+    return [...formattedActiveTasks, ...formattedCompletedTasks];
   }
 
   async getPriorityTasks(count = 5) {
@@ -259,7 +292,7 @@ class TodoFileManager {
       return { task, urgencyScore };
     }).sort((a, b) => b.urgencyScore - a.urgencyScore);
 
-    return prioritized.slice(0, count).map(item => item.task);
+    return prioritized.slice(0, count).map(item => item.task.text);
   }
 
   async getStats() {
@@ -482,7 +515,7 @@ class TodoFileManager {
         return { success: true, tasks: [], message: 'No tasks found' };
       }
 
-      return { success: true, tasks: filteredTasks, message: `Found ${filteredTasks.length} tasks` };
+      return { success: true, tasks: filteredTasks.map(t => t.text), message: `Found ${filteredTasks.length} tasks` };
     } catch (error) {
       console.error('❌ Error listing tasks:', error);
       return { success: false, message: 'Failed to list tasks' };
@@ -500,7 +533,7 @@ class TodoFileManager {
 
       return { 
         success: true, 
-        tasks: matchingTasks, 
+        tasks: matchingTasks.map(t => t.text), 
         message: `Found ${matchingTasks.length} matching tasks` 
       };
     } catch (error) {

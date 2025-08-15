@@ -90,11 +90,9 @@ export default function UnifiedInterface() {
     }
   };
 
-  // Auto-refresh tasks every 2 seconds
+  // Initial load only - no auto-refresh to prevent UI jumpiness
   useEffect(() => {
     fetchTasks();
-    const interval = setInterval(fetchTasks, 2000);
-    return () => clearInterval(interval);
   }, []);
 
   // Listen for real-time task updates from voice commands
@@ -247,7 +245,10 @@ export default function UnifiedInterface() {
 
   // Helper functions for task parsing
   const getTaskId = (task) => {
-    // Now task is an object with id property
+    if (task.status === 'completed') {
+      return 'DONE';
+    }
+    // For active tasks, show numeric ID
     return task.id ? task.id.toString().padStart(3, '0') : null;
   };
 
@@ -354,7 +355,11 @@ export default function UnifiedInterface() {
             </div>
           ) : (
             <div className={styles.tasksList}>
-              {tasks.map((task, index) => {
+              {tasks.filter(task => {
+                if (filter === 'active') return task.status === 'active';
+                if (filter === 'completed') return task.status === 'completed';
+                return true; // 'all' filter
+              }).map((task, index) => {
                 const taskId = getTaskId(task);
                 const taskText = getTaskText(task);
                 const deadline = getDeadlineInfo(task);

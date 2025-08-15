@@ -106,13 +106,13 @@ class JarvisApp {
           return { success: false, error: 'Todo manager not available' };
         }
 
-        const activeTasks = await this.todoManager.getActiveTasks();
+        const allTasks = await this.todoManager.getAllTasks();
         const stats = await this.todoManager.getStats();
 
         return {
           success: true,
           data: {
-            tasks: activeTasks,
+            tasks: allTasks,
             stats: stats
           }
         };
