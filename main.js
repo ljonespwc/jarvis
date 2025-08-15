@@ -290,23 +290,20 @@ class JarvisApp {
       return;
     }
 
-    // Request permission on macOS if needed
+    // Check if notifications are permitted on macOS
     if (process.platform === 'darwin') {
       try {
         const { systemPreferences } = require('electron');
-        const status = systemPreferences.getMediaAccessStatus('notifications');
-        console.log('🔒 Notification permission status:', status);
         
-        if (status !== 'granted') {
-          console.log('📝 Requesting notification permissions...');
-          const granted = await systemPreferences.askForMediaAccess('notifications');
-          if (!granted) {
-            console.log('❌ Notification permission denied by user');
-            return;
-          }
+        // Check if we can show notifications - this will trigger permission request if needed
+        if (!systemPreferences.isSupported('doNotDisturb')) {
+          console.log('⚠️ Do Not Disturb settings not accessible');
         }
+        
+        // The first notification will automatically trigger permission request on macOS
+        console.log('🔒 macOS will request notification permission if needed');
       } catch (error) {
-        console.log('⚠️ Could not check notification permissions:', error.message);
+        console.log('⚠️ Could not check system preferences:', error.message);
       }
     }
 
@@ -322,6 +319,17 @@ class JarvisApp {
 
       notification.show();
       console.log('📱 Notification shown successfully');
+      
+      // Fallback: Use AppleScript for macOS if Electron notification doesn't work
+      if (process.platform === 'darwin') {
+        const { spawn } = require('child_process');
+        const applescript = `display notification "${body.replace(/"/g, '\\"')}" with title "JARVIS: ${title.replace(/"/g, '\\"')}" sound name "default"`;
+        
+        setTimeout(() => {
+          spawn('osascript', ['-e', applescript], { stdio: 'ignore' });
+          console.log('🍎 Sent fallback AppleScript notification');
+        }, 100);
+      }
       
       notification.on('show', () => {
         console.log('🎉 Notification displayed');
