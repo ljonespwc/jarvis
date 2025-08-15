@@ -42,10 +42,9 @@ class JarvisApp {
     
     this.mainWindow = new BrowserWindow({
       width: 400,
-      height: 600,
+      height: 1000,
       minWidth: 350,
       minHeight: 400,
-      maxHeight: 1000, // Reasonable maximum height
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
@@ -180,8 +179,6 @@ class JarvisApp {
         completed: stats.completedCount
       };
       
-      // Update window height based on active task count
-      this.adjustWindowHeight(stats.activeCount);
       
       if (this.tray) {
         this.updateTrayMenu();
@@ -191,29 +188,6 @@ class JarvisApp {
     }
   }
 
-  adjustWindowHeight(activeTaskCount) {
-    if (!this.mainWindow) return;
-    
-    // Calculate optimal height
-    const baseHeight = 320; // Header + voice cards + document header
-    const taskHeight = 45;  // Height per task line (including padding)
-    const padding = 40;     // Bottom padding
-    
-    const calculatedHeight = baseHeight + (activeTaskCount * taskHeight) + padding;
-    
-    // Apply reasonable bounds
-    const minHeight = 400;
-    const maxHeight = 1000;
-    const optimalHeight = Math.min(Math.max(calculatedHeight, minHeight), maxHeight);
-    
-    // Get current size to avoid unnecessary resize
-    const [currentWidth, currentHeight] = this.mainWindow.getSize();
-    
-    if (Math.abs(currentHeight - optimalHeight) > 10) { // Only resize if significant difference
-      console.log(`📐 Adjusting window height: ${currentHeight} → ${optimalHeight} (${activeTaskCount} tasks)`);
-      this.mainWindow.setSize(currentWidth, optimalHeight, true); // animate: true
-    }
-  }
 
   updateTrayMenu() {
     if (!this.tray) return;
@@ -463,8 +437,8 @@ class JarvisApp {
       // Step 2: Execute function based on parsed intent
       const result = await this.executeTodoFunction(intent);
       
-      // Step 3: Return simple confirmation or result
-      return result;
+      // Step 3: Return simple confirmation or result (clean square brackets for speech)
+      return typeof result === 'string' ? result.replace(/\[[^\]]*\]/g, '').trim() : result;
       
     } catch (error) {
       console.error('❌ Error processing voice command:', error);
@@ -496,7 +470,7 @@ class JarvisApp {
             await this.updateTaskStats();
             this.emitTaskUpdate();
           }
-          return result.success ? result.message : result.message;
+          return result.success ? 'Done' : result.message;
 
         case 'mark_complete':
           result = await this.todoManager.mark_complete(params.taskQuery);
@@ -507,7 +481,7 @@ class JarvisApp {
             await this.updateTaskStats();
             this.emitTaskUpdate();
           }
-          return result.success ? result.message : result.message;
+          return result.success ? 'Done' : result.message;
 
         case 'update_task':
           result = await this.todoManager.update_task(params.taskQuery, params.newText);
@@ -518,7 +492,7 @@ class JarvisApp {
             await this.updateTaskStats();
             this.emitTaskUpdate();
           }
-          return result.success ? result.message : result.message;
+          return result.success ? 'Done' : result.message;
 
         case 'delete_task':
           result = await this.todoManager.delete_task(params.taskQuery);
@@ -529,7 +503,7 @@ class JarvisApp {
             await this.updateTaskStats();
             this.emitTaskUpdate();
           }
-          return result.success ? result.message : result.message;
+          return result.success ? 'Done' : result.message;
 
         case 'add_deadline':
           result = await this.todoManager.add_deadline(params.taskQuery, params.deadline);
@@ -540,7 +514,7 @@ class JarvisApp {
             await this.updateTaskStats();
             this.emitTaskUpdate();
           }
-          return result.success ? result.message : result.message;
+          return result.success ? 'Done' : result.message;
 
         case 'set_priority':
           result = await this.todoManager.set_priority(params.taskQuery, params.priority);
@@ -552,12 +526,15 @@ class JarvisApp {
             await this.updateTaskStats();
             this.emitTaskUpdate();
           }
-          return result.success ? result.message : result.message;
+          return result.success ? 'Done' : result.message;
 
         case 'list_tasks':
           const listResult = await this.todoManager.list_tasks(params.filter);
           if (listResult.success && listResult.tasks.length > 0) {
-            const taskList = listResult.tasks.slice(0, 5).join(', ');
+            const cleanTasks = listResult.tasks.slice(0, 5).map(task => 
+              task.replace(/\[[^\]]*\]/g, '').trim()
+            );
+            const taskList = cleanTasks.join(', ');
             return `Your tasks: ${taskList}`;
           } else if (listResult.success && listResult.tasks.length === 0) {
             return params.filter === 'urgent' ? 'No urgent tasks' : 'No tasks found';
@@ -568,7 +545,10 @@ class JarvisApp {
         case 'search_tasks':
           const searchResult = await this.todoManager.search_tasks(params.query);
           if (searchResult.success && searchResult.tasks.length > 0) {
-            const taskList = searchResult.tasks.slice(0, 3).join(', ');
+            const cleanTasks = searchResult.tasks.slice(0, 3).map(task => 
+              task.replace(/\[[^\]]*\]/g, '').trim()
+            );
+            const taskList = cleanTasks.join(', ');
             return `Found: ${taskList}`;
           } else if (searchResult.success && searchResult.tasks.length === 0) {
             return `No tasks found matching "${params.query}"`;

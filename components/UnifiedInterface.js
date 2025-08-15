@@ -9,7 +9,7 @@ export default function UnifiedInterface() {
   const [tasks, setTasks] = useState([]);
   const [stats, setStats] = useState({ active: 0, completed: 0 });
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all'); // 'all', 'active', 'completed'
+  const [filter, setFilter] = useState('active'); // 'all', 'active', 'completed'
 
   // Console suppression (preserve from original)
   useEffect(() => {

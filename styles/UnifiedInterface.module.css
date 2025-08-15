@@ -7,6 +7,7 @@
   background: #f5f5f5;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif;
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 /* Header Section */
@@ -134,7 +135,7 @@
 /* Todo Document Section - TextEdit Style */
 .todoDocument {
   flex: 1;
-  margin: 16px 24px 24px;
+  margin: 16px 24px 16px;
   background: #ffffff;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -142,6 +143,7 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  min-height: 0; /* Allow flex item to shrink */
 }
 
 .documentHeader {
