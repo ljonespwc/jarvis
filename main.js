@@ -135,8 +135,10 @@ class JarvisApp {
     await this.startLocalServer();
     await this.setupTray();
     await this.updateTaskStats();
-    
-    // Set up IPC for sessionId from renderer
+  }
+
+  setupIPC() {
+    // Set up IPC for sessionId from renderer - MUST be before window creation
     ipcMain.on('set-session-id', (event, sessionId) => {
       console.log('📡 Received sessionId from renderer:', sessionId);
       console.log('📡 Will now connect to bridge...');
@@ -287,7 +289,7 @@ class JarvisApp {
             // Handle Layercode webhook requests
             await this.handleWebhookRequest(req, res);
             
-          } else if (req.method === 'POST' && parsedUrl.pathname === '/todo') {
+          } else if (req.method === 'POST' && parsedUrl.pathname === '/todo-disabled') {
             let body = '';
             req.on('data', chunk => body += chunk);
             req.on('end', async () => {
@@ -494,6 +496,12 @@ class JarvisApp {
             notificationTitle = 'Task Completed';
             notificationBody = `✅ Marked "${params.taskQuery}" as done`;
             console.log('📢 About to show notification:', notificationTitle, notificationBody);
+            
+            // FORCE TEST NOTIFICATION
+            console.log('🧪 TESTING: Force showing notification...');
+            const testNotification = this.showNotification('TEST NOTIFICATION', 'This is a test notification to see if notifications work at all');
+            console.log('🧪 Test notification result:', testNotification);
+            
             this.showNotification(notificationTitle, notificationBody);
             await this.updateTaskStats();
             this.emitTaskUpdate();
@@ -668,9 +676,10 @@ app.commandLine.appendSwitch('--disable-renderer-backgrounding');
 app.commandLine.appendSwitch('--disable-backgrounding-occluded-windows');
 
 app.whenReady().then(async () => {
-
-  await jarvisApp.initialize();
+  // Setup IPC FIRST before anything else
   jarvisApp.setupIPC();
+  
+  await jarvisApp.initialize();
   jarvisApp.createWindow();
 
   app.on('activate', () => {

@@ -3,6 +3,7 @@ import { useLayercodePipeline } from '@layercode/react-sdk';
 import styles from '../styles/UnifiedInterface.module.css';
 
 export default function UnifiedInterface() {
+  console.log('🚨 COMPONENT LOADED: UnifiedInterface is rendering!');
   const [status, setStatus] = useState('Initializing JARVIS...');
   const [error, setError] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -93,6 +94,15 @@ export default function UnifiedInterface() {
   // Initial load only - no auto-refresh to prevent UI jumpiness
   useEffect(() => {
     fetchTasks();
+    
+    // FORCE bridge connection - generate a sessionId and send it
+    const forceSessionId = 'jarvis-force-' + Date.now();
+    console.log('🔧 FORCING sessionId to main process:', forceSessionId);
+    if (window.electronAPI) {
+      window.electronAPI.setSessionId(forceSessionId);
+    } else {
+      console.error('❌ electronAPI not available for force connection!');
+    }
   }, []);
 
   // Listen for real-time task updates from voice commands
