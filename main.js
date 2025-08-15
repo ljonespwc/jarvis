@@ -283,11 +283,31 @@ class JarvisApp {
     this.tray.setContextMenu(contextMenu);
   }
 
-  showNotification(title, body, actions = []) {
+  async showNotification(title, body, actions = []) {
     console.log('📢 Attempting to show notification:', title, body);
     if (!Notification.isSupported()) {
       console.log('⚠️ Notifications not supported on this system');
       return;
+    }
+
+    // Request permission on macOS if needed
+    if (process.platform === 'darwin') {
+      try {
+        const { systemPreferences } = require('electron');
+        const status = systemPreferences.getMediaAccessStatus('notifications');
+        console.log('🔒 Notification permission status:', status);
+        
+        if (status !== 'granted') {
+          console.log('📝 Requesting notification permissions...');
+          const granted = await systemPreferences.askForMediaAccess('notifications');
+          if (!granted) {
+            console.log('❌ Notification permission denied by user');
+            return;
+          }
+        }
+      } catch (error) {
+        console.log('⚠️ Could not check notification permissions:', error.message);
+      }
     }
 
     try {
@@ -546,7 +566,7 @@ class JarvisApp {
             const deadlineText = params.deadline ? ` (due: ${params.deadline})` : '';
             notificationBody = `${priorityText}${params.task}${deadlineText}`;
             console.log('📢 About to show notification:', notificationTitle, notificationBody);
-            this.showNotification(notificationTitle, notificationBody);
+            await this.showNotification(notificationTitle, notificationBody);
             await this.updateTaskStats();
             this.emitTaskUpdate();
           }
@@ -560,7 +580,7 @@ class JarvisApp {
             notificationBody = `✅ Marked "${params.taskQuery}" as done`;
             console.log('📢 About to show notification:', notificationTitle, notificationBody);
             
-            this.showNotification(notificationTitle, notificationBody);
+            await this.showNotification(notificationTitle, notificationBody);
             await this.updateTaskStats();
             this.emitTaskUpdate();
           }
@@ -571,7 +591,7 @@ class JarvisApp {
           if (result.success) {
             notificationTitle = 'Task Updated';
             notificationBody = `📝 "${params.taskQuery}" → "${params.newText}"`;
-            this.showNotification(notificationTitle, notificationBody);
+            await this.showNotification(notificationTitle, notificationBody);
             await this.updateTaskStats();
             this.emitTaskUpdate();
           }
@@ -582,7 +602,7 @@ class JarvisApp {
           if (result.success) {
             notificationTitle = 'Task Removed';
             notificationBody = `🗑️ Deleted "${params.taskQuery}"`;
-            this.showNotification(notificationTitle, notificationBody);
+            await this.showNotification(notificationTitle, notificationBody);
             await this.updateTaskStats();
             this.emitTaskUpdate();
           }
@@ -593,7 +613,7 @@ class JarvisApp {
           if (result.success) {
             notificationTitle = 'Deadline Added';
             notificationBody = `📅 "${params.taskQuery}" due ${params.deadline}`;
-            this.showNotification(notificationTitle, notificationBody);
+            await this.showNotification(notificationTitle, notificationBody);
             await this.updateTaskStats();
             this.emitTaskUpdate();
           }
@@ -605,7 +625,7 @@ class JarvisApp {
             const priorityEmoji = params.priority === 'urgent' ? '🔥' : params.priority === 'low' ? '📋' : '⚪';
             notificationTitle = 'Priority Updated';
             notificationBody = `${priorityEmoji} "${params.taskQuery}" set to ${params.priority}`;
-            this.showNotification(notificationTitle, notificationBody);
+            await this.showNotification(notificationTitle, notificationBody);
             await this.updateTaskStats();
             this.emitTaskUpdate();
           }
