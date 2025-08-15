@@ -315,14 +315,14 @@ class JarvisApp {
         console.log('❌ Notification was closed');
       });
       
-      // Auto-close after 8 seconds instead of 4
+      // Auto-close after 4 seconds
       setTimeout(() => {
         try {
           notification.close();
         } catch (error) {
           console.log('⚠️ Error closing notification:', error.message);
         }
-      }, 8000);
+      }, 4000);
 
       return notification;
     } catch (error) {
@@ -559,11 +559,6 @@ class JarvisApp {
             notificationTitle = 'Task Completed';
             notificationBody = `✅ Marked "${params.taskQuery}" as done`;
             console.log('📢 About to show notification:', notificationTitle, notificationBody);
-            
-            // FORCE TEST NOTIFICATION
-            console.log('🧪 TESTING: Force showing notification...');
-            const testNotification = this.showNotification('TEST NOTIFICATION', 'This is a test notification to see if notifications work at all');
-            console.log('🧪 Test notification result:', testNotification);
             
             this.showNotification(notificationTitle, notificationBody);
             await this.updateTaskStats();
