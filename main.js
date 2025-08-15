@@ -262,17 +262,6 @@ class JarvisApp {
       notification.show();
       console.log('📱 Notification shown successfully');
       
-      // Fallback: Use AppleScript for macOS if Electron notification doesn't work
-      if (process.platform === 'darwin') {
-        const { spawn } = require('child_process');
-        const applescript = `display notification "${body.replace(/"/g, '\\"')}" with title "JARVIS: ${title.replace(/"/g, '\\"')}" sound name "default"`;
-        
-        setTimeout(() => {
-          spawn('osascript', ['-e', applescript], { stdio: 'ignore' });
-          console.log('🍎 Sent fallback AppleScript notification');
-        }, 100);
-      }
-      
       notification.on('show', () => {
         console.log('🎉 Notification displayed');
       });
