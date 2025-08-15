@@ -596,21 +596,24 @@ class JarvisApp {
     
     const pollForCommands = async () => {
       try {
+        console.log('🔄 Polling bridge for commands...');
         const response = await fetch(`https://jarvis-vert-eta.vercel.app/api/websocket?sessionId=${this.sessionId}`, {
           method: 'GET'
         });
 
         if (response.ok) {
           const data = await response.json();
+          console.log('📡 Bridge response:', data.type);
           
           if (data.type === 'command') {
-            console.log('📨 Received command from bridge:', data.command);
+            console.log('📨 Received command from bridge:', data.command, data.data);
             
-            // Process command locally
+            // Process command locally (this is where notifications happen!)
             const result = await this.processVoiceCommand(data.data.text || data.data);
+            console.log('🏠 Local processing result:', result);
             
             // Send response back to bridge
-            await fetch(`https://jarvis-vert-eta.vercel.app/api/websocket?sessionId=${this.sessionId}`, {
+            const postResponse = await fetch(`https://jarvis-vert-eta.vercel.app/api/websocket?sessionId=${this.sessionId}`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -619,7 +622,9 @@ class JarvisApp {
               })
             });
             
-            console.log('📤 Sent response back to bridge');
+            console.log('📤 Sent response back to bridge, status:', postResponse.status);
+          } else if (data.type === 'keepalive') {
+            console.log('💓 Bridge keepalive');
           }
           
           if (!this.bridgeConnected) {
@@ -628,12 +633,13 @@ class JarvisApp {
           }
           
         } else {
-          console.error('❌ Bridge polling error:', response.status);
+          console.error('❌ Bridge polling error:', response.status, response.statusText);
         }
         
       } catch (error) {
+        console.error('❌ Bridge polling error:', error.message);
         if (this.bridgeConnected) {
-          console.error('❌ Lost connection to bridge:', error.message);
+          console.error('❌ Lost connection to bridge');
           this.bridgeConnected = false;
         }
       }

@@ -104,17 +104,21 @@ export default async function handler(req, res) {
       }
     }
 
-    // Process command via bridge to local app
+    // ALWAYS process commands via bridge to local app (where notifications work)
     let responseText = '';
 
     try {
       console.log('🌉 Processing voice command via bridge...', { sessionId, text });
       responseText = await sendCommandToBridge(sessionId, text);
       
+      if (!responseText || responseText === 'undefined') {
+        throw new Error('Empty response from bridge');
+      }
+      
     } catch (error) {
       console.error('❌ Error processing command via bridge:', error);
       
-      if (error.message.includes('Bridge error') || error.message.includes('timeout')) {
+      if (error.message.includes('Bridge error') || error.message.includes('timeout') || error.message.includes('Empty response')) {
         responseText = "Please make sure JARVIS is running on your computer to access your todo file.";
       } else {
         responseText = "Sorry, I had trouble processing your request. Please try again.";
