@@ -507,7 +507,7 @@ class JarvisApp {
             await this.updateTaskStats();
             this.emitTaskUpdate();
           }
-          return result.success ? 'Done' : result.message;
+          return result.success ? 'Okay' : result.message;
 
         case 'mark_complete':
           result = await this.todoManager.mark_complete(params.taskQuery);
@@ -519,7 +519,7 @@ class JarvisApp {
             await this.updateTaskStats();
             this.emitTaskUpdate();
           }
-          return result.success ? 'Done' : result.message;
+          return result.success ? 'Okay' : result.message;
 
         case 'update_task':
           result = await this.todoManager.update_task(params.taskQuery, params.newText);
@@ -530,7 +530,7 @@ class JarvisApp {
             await this.updateTaskStats();
             this.emitTaskUpdate();
           }
-          return result.success ? 'Done' : result.message;
+          return result.success ? 'Okay' : result.message;
 
         case 'delete_task':
           result = await this.todoManager.delete_task(params.taskQuery);
@@ -541,7 +541,7 @@ class JarvisApp {
             await this.updateTaskStats();
             this.emitTaskUpdate();
           }
-          return result.success ? 'Done' : result.message;
+          return result.success ? 'Okay' : result.message;
 
         case 'add_deadline':
           result = await this.todoManager.add_deadline(params.taskQuery, params.deadline);
@@ -552,7 +552,7 @@ class JarvisApp {
             await this.updateTaskStats();
             this.emitTaskUpdate();
           }
-          return result.success ? 'Done' : result.message;
+          return result.success ? 'Okay' : result.message;
 
         case 'set_priority':
           result = await this.todoManager.set_priority(params.taskQuery, params.priority);
@@ -564,7 +564,7 @@ class JarvisApp {
             await this.updateTaskStats();
             this.emitTaskUpdate();
           }
-          return result.success ? 'Done' : result.message;
+          return result.success ? 'Okay' : result.message;
 
         case 'list_tasks':
           const listResult = await this.todoManager.list_tasks(params.filter);
